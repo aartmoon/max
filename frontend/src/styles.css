@@ -873,6 +873,9 @@ select:focus {
   .panel {
     padding: 32px;
   }
+  main:has(> .form) {
+    max-width: 844px;
+  }
   main > .form {
     max-width: 780px;
   }

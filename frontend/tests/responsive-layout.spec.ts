@@ -61,6 +61,15 @@ test("desktop uses a wide workspace and multi-column content", async ({
   expect(cards[1].x).toBeGreaterThan(cards[0].x);
 });
 
+test("desktop centers the new request form", async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 1000 });
+  await page.goto("/max/requests/new");
+
+  const form = await page.locator("main > .form").boundingBox();
+  expect(form).not.toBeNull();
+  expect(Math.abs(form!.x + form!.width / 2 - 720)).toBeLessThanOrEqual(1);
+});
+
 test("mobile keeps its existing compact layout", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto("/max/");
