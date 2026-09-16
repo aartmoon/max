@@ -1,0 +1,116 @@
+name: max
+
+services:
+  postgres:
+    image: postgres:17-alpine
+    restart: unless-stopped
+
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-tvoydom}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
+      POSTGRES_DB: ${POSTGRES_DB:-tvoydom}
+
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+    networks:
+      - backend
+
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 5s
+      timeout: 5s
+      retries: 15
+
+
+  backend:
+    image: artshar/max-backend:latest
+    pull_policy: always
+    restart: unless-stopped
+
+    environment:
+      DATABASE_URL: postgres://${POSTGRES_USER:-tvoydom}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-tvoydom}?sslmode=disable
+      PORT: "8080"
+
+      MOCK_STATUS_ENABLED: ${MOCK_STATUS_ENABLED:-true}
+
+      MAX_BOT_TOKEN: ${MAX_BOT_TOKEN:-}
+      MAX_APP_URL: ${MAX_APP_URL:-}
+      MAX_BOT_USERNAME: ${MAX_BOT_USERNAME:-}
+      MAX_CA_CERT_FILE: ${MAX_CA_CERT_FILE:-}
+
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+    networks:
+      - backend
+
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "wget",
+          "-q",
+          "-O",
+          "-",
+          "http://127.0.0.1:8080/api/health"
+        ]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+
+  frontend:
+    image: artshar/max-frontend:latest
+    pull_policy: always
+    restart: unless-stopped
+
+    depends_on:
+      backend:
+        condition: service_healthy
+
+    networks:
+      - backend
+      - proxy
+
+    labels:
+      traefik.enable: "true"
+
+      # https://cottontoys.ru/max/*
+      traefik.http.routers.max.rule: "Host(`cottontoys.ru`) && PathPrefix(`/max`)"
+      traefik.http.routers.max.entrypoints: websecure
+      traefik.http.routers.max.tls: "true"
+      traefik.http.routers.max.tls.certresolver: letsencrypt
+
+      # Чтобы /max имел приоритет над обычным cottontoys.ru
+      traefik.http.routers.max.priority: "200"
+
+      # /max/api/... -> /api/...
+      # /max/assets/... -> /assets/...
+      traefik.http.routers.max.middlewares: max-strip
+      traefik.http.middlewares.max-strip.stripprefix.prefixes: "/max"
+
+      traefik.http.services.max.loadbalancer.server.port: "80"
+
+      # Сеть существующего Traefik из ~/ruk
+      traefik.docker.network: "rukodelie_proxy"
+
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "-", "http://127.0.0.1/"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+
+volumes:
+  postgres_data:
+
+
+networks:
+  backend:
+    internal: true
+
+  proxy:
+    external: true
+    name: rukodelie_proxy
