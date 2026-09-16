@@ -6,10 +6,6 @@ export default function Home() {
       <section className="hero">
         <div className="house-art" aria-hidden="true">
           <span>⌂</span>
-          <i className="window one" />
-          <i className="window two" />
-          <i className="window three" />
-          <i className="window four" />
           <b>✓</b>
         </div>
         <h1>
@@ -18,63 +14,63 @@ export default function Home() {
           начинается с вас.
         </h1>
         <p>
-          Решайте проблемы дома без путаницы.
-          <br />
-          Расскажите, что случилось — поможем
-          <br className="desktop-break" /> направить обращение ответственным.
+          Вопрос, запрос или проблема — всё начинается с заявки. Следите за
+          решением и будьте на связи с управляющей компанией.
         </p>
         <Link className="button primary" to="/requests/new">
-          Сообщить о проблеме <span>↗</span>
+          Создать заявку <span>↗</span>
         </Link>
       </section>
       <div className="action-grid">
-        <Link className="action-card" to="/requests/new?kind=APPLICATION">
+        <Link className="action-card" to="/requests">
           <span className="icon">▤</span>
-          <h2>Заявка в УК</h2>
-          <p>Обратиться в управляющую компанию</p>
+          <h2>Мои заявки</h2>
+          <p>Статусы, ответы УК и история решения</p>
           <span className="arrow">↗</span>
         </Link>
-        <Link className="action-card" to="/requests/new?kind=QUESTION">
-          <span className="icon">?</span>
-          <h2>Задать вопрос</h2>
-          <p>Уточнить, как решаются вопросы дома</p>
+        <Link className="action-card" to="/house">
+          <span className="icon">⌂</span>
+          <h2>Мой дом</h2>
+          <p>Управляющая компания и информация о доме</p>
           <span className="arrow">↗</span>
         </Link>
       </div>
-      <Link className="my-requests" to="/requests">
-        <span>
-          <strong>Мои обращения</strong>
-          <small>Статусы и история — в одном месте</small>
-        </span>
-        <span>→</span>
-      </Link>
-      <div className="how">
-        <h2>От проблемы к решению</h2>
+      <section className="how">
+        <h2>Одна заявка — любой вопрос</h2>
         <div>
           <span>01</span>
           <p>
-            Опишите ситуацию
+            Выберите тип заявки
             <br />
-            <small>Можно добавить фото</small>
+            <small>Запрос, вопрос, экстренно, проблема или жалоба</small>
           </p>
         </div>
         <div>
           <span>02</span>
           <p>
-            Узнайте ответственного
+            Расскажите подробнее
             <br />
-            <small>Определим категорию и организацию</small>
+            <small>Укажите адрес и при необходимости добавьте фото</small>
           </p>
         </div>
         <div>
           <span>03</span>
           <p>
-            Следите за обращением
+            Следите за решением
             <br />
-            <small>Сохраним каждый статус</small>
+            <small>
+              Изменения статуса и комментарии УК сохранятся в истории
+            </small>
           </p>
         </div>
-      </div>
+      </section>
+      <Link className="my-requests" to="/admin">
+        <span>
+          <strong>Работаете в УК?</strong>
+          <small>Открыть демонстрационный кабинет организации</small>
+        </span>
+        <span>→</span>
+      </Link>
       <p className="demo-note">
         Демо для хакатона «Умный город» · Интеграции работают в тестовом режиме
       </p>

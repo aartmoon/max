@@ -54,9 +54,9 @@ func (s RequestService) Create(ctx context.Context, in CreateInput) (domain.Requ
 		return domain.Request{}, domain.ValidationError{Message: "Адрес должен содержать от 5 до 300 символов"}
 	}
 	if in.Kind == "" {
-		in.Kind = "PROBLEM"
+		in.Kind = "APPLICATION"
 	}
-	if in.Kind != "PROBLEM" && in.Kind != "APPLICATION" && in.Kind != "QUESTION" {
+	if in.Kind != "PROBLEM" && in.Kind != "APPLICATION" && in.Kind != "QUESTION" && in.Kind != "EMERGENCY" && in.Kind != "COMPLAINT" {
 		return domain.Request{}, domain.ValidationError{Message: "Неизвестный тип обращения"}
 	}
 	photoType := ""

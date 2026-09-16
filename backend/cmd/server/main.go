@@ -13,6 +13,7 @@ import (
 	"tvoydom/config"
 	"tvoydom/controller"
 	"tvoydom/integration"
+	"tvoydom/integration/maxbot"
 	"tvoydom/repository"
 	"tvoydom/service"
 )
@@ -40,6 +41,26 @@ func main() {
 	server := &http.Server{Addr: ":" + c.Port, Handler: (controller.Handler{Service: svc, Repo: repo, MockStatusEnabled: c.MockStatusEnabled}).Routes(), ReadHeaderTimeout: 5 * time.Second, ReadTimeout: 20 * time.Second, WriteTimeout: 30 * time.Second, IdleTimeout: 60 * time.Second}
 	stop, done := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer done()
+	if c.MaxBotToken != "" {
+		if err := maxbot.ValidateSettings(c.MaxAppURL, c.MaxBotUsername); err != nil {
+			slog.Error("MAX bot configuration", "error", err)
+			os.Exit(1)
+		}
+		client, err := maxbot.NewClient(c.MaxBotToken, c.MaxCACertFile)
+		if err != nil {
+			slog.Error("MAX bot TLS configuration", "error", err)
+			os.Exit(1)
+		}
+		bot := maxbot.Bot{API: client, AppURL: c.MaxAppURL, Username: c.MaxBotUsername}
+		go func() {
+			slog.Info("MAX bot polling started")
+			if err := bot.Run(stop); err != nil {
+				slog.Error("MAX bot stopped; fix configuration and restart backend", "error", err)
+			}
+		}()
+	} else {
+		slog.Info("MAX bot disabled: MAX_BOT_TOKEN is empty")
+	}
 	go func() {
 		<-stop.Done()
 		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)

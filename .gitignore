@@ -7,3 +7,6 @@ test-results/
 .DS_Store
 
 .pnpm-store/
+
+certs/*.pem
+certs/*.crt

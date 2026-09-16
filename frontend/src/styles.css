@@ -635,3 +635,179 @@ code {
     scroll-behavior: auto !important;
   }
 }
+
+select {
+  font: inherit;
+  display: block;
+  width: 100%;
+  min-width: 0;
+  padding: 13px;
+  border: 1px solid #dce3d8;
+  border-radius: 10px;
+  background: #fafbf8;
+  color: #274238;
+  font-size: 16px;
+}
+select:focus {
+  outline: 3px solid #e8eee3;
+  border-color: #60836b;
+}
+.type-hint {
+  font-size: 13px;
+  color: #748077;
+  margin-top: 12px;
+}
+.urgent-note,
+.admin-notice {
+  font-size: 13px;
+  border-radius: 10px;
+  padding: 14px;
+  margin: 14px 0 22px;
+  line-height: 1.6;
+}
+.urgent-note {
+  background: #fff0e5;
+  color: #955732;
+}
+.admin-notice {
+  background: #eaf0e4;
+  color: #5e7553;
+}
+.stat-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+  margin: 24px 0;
+}
+.stat-grid > div {
+  background: white;
+  border: 1px solid #e3e8df;
+  border-radius: 14px;
+  padding: 18px;
+}
+.stat-grid strong {
+  display: block;
+  font-size: 28px;
+}
+.stat-grid span {
+  font-size: 12px;
+  color: #7c8975;
+}
+.stat-grid .urgent-stat {
+  background: #fff3e9;
+  border-color: #f1ddc9;
+}
+.urgent-stat strong {
+  color: #a26039;
+}
+.admin-filters {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+.admin-filters label {
+  font-size: 12px;
+  min-width: 0;
+}
+.admin-filters label:first-child {
+  grid-column: 1/-1;
+}
+.admin-filters select {
+  margin-top: 7px;
+}
+.list-summary {
+  margin: 20px 0;
+}
+.list-summary > span {
+  font-size: 13px;
+}
+.urgent-card {
+  border-left: 4px solid #d59562;
+}
+.urgent-label {
+  color: #b66838;
+  font-size: 13px;
+  font-weight: 600;
+}
+.request-kind {
+  font-size: 12px;
+  color: #71846c;
+}
+.house-banner {
+  display: flex;
+  gap: 20px;
+  align-items: center;
+  background: #eaf0e4;
+  padding: 26px;
+  border-radius: 16px;
+  margin: 26px 0 16px;
+}
+.house-symbol {
+  font-size: 68px;
+  color: #94ac89;
+  line-height: 1;
+}
+.house-banner small {
+  font-size: 10px;
+  letter-spacing: 1px;
+  color: #748568;
+}
+.house-banner h2 {
+  margin: 6px 0;
+}
+.house-banner p {
+  font-size: 13px;
+  color: #738369;
+  margin: 0;
+}
+.house-facts {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 24px;
+  margin: 24px 0 0;
+}
+.house-facts dt {
+  margin: 0;
+}
+.house-facts dd {
+  font-size: 22px;
+  font-weight: 600;
+}
+.status-submit {
+  margin-top: 20px;
+}
+.history-comment {
+  font-size: 14px;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  margin: 12px 0 0;
+  padding: 12px;
+  background: #f4f6f0;
+  border-radius: 8px;
+}
+.bottom-nav a {
+  min-width: 60px;
+}
+@media (max-width: 400px) {
+  .stat-grid {
+    gap: 7px;
+  }
+  .stat-grid > div {
+    padding: 13px 10px;
+  }
+  .stat-grid span {
+    font-size: 11px;
+  }
+  .house-banner {
+    padding: 20px;
+    gap: 12px;
+  }
+  .house-facts dd {
+    font-size: 20px;
+  }
+  .list-summary {
+    align-items: start;
+    flex-direction: column;
+    gap: 4px;
+  }
+}

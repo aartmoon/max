@@ -1,4 +1,10 @@
-import type { RequestItem, HistoryItem } from "./types";
+import type {
+  RequestItem,
+  HistoryItem,
+  House,
+  Organization,
+  Status,
+} from "./types";
 async function call<T>(path: string, init?: RequestInit): Promise<T> {
   let response: Response;
   try {
@@ -34,4 +40,24 @@ export const api = {
       { method: "POST" },
     ),
   config: () => call<{ mockStatusEnabled: boolean }>("/config"),
+};
+
+export const houseApi = {
+  get: (signal?: AbortSignal) => call<House>("/house", { signal }),
+};
+export const adminApi = {
+  list: (signal?: AbortSignal) =>
+    call<RequestItem[]>("/admin/requests", { signal }),
+  organizations: (signal?: AbortSignal) =>
+    call<Organization[]>("/organizations", { signal }),
+  get: (id: string, signal?: AbortSignal) =>
+    call<RequestItem>(`/admin/requests/${id}`, { signal }),
+  history: (id: string, signal?: AbortSignal) =>
+    call<HistoryItem[]>(`/admin/requests/${id}/history`, { signal }),
+  setStatus: (id: string, status: Status, comment: string) =>
+    call<RequestItem>(`/admin/requests/${id}/status`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ status, comment }),
+    }),
 };

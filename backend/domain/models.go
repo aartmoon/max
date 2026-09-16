@@ -17,8 +17,17 @@ type User struct {
 	Name string `json:"name"`
 }
 type House struct {
-	ID      string `json:"id"`
-	Address string `json:"address"`
+	ID           string  `json:"id"`
+	Address      string  `json:"address"`
+	TotalArea    float64 `json:"totalArea"`
+	LivingArea   float64 `json:"livingArea"`
+	Floors       int     `json:"floors"`
+	Entrances    int     `json:"entrances"`
+	Apartments   int     `json:"apartments"`
+	YearBuilt    int     `json:"yearBuilt"`
+	Organization string  `json:"organization"`
+	Manager      string  `json:"manager"`
+	Contact      string  `json:"contact"`
 }
 type Organization struct {
 	ID   string `json:"id"`
@@ -43,6 +52,8 @@ type Request struct {
 	PhotoType                 string    `json:"-"`
 }
 type RequestStatusHistory struct {
+	Comment   string    `json:"comment"`
+	Actor     string    `json:"actor"`
 	ID        int64     `json:"id"`
 	RequestID string    `json:"requestId"`
 	Status    string    `json:"status"`

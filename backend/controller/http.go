@@ -21,6 +21,7 @@ type Handler struct {
 
 func (h Handler) Routes() http.Handler {
 	mux := http.NewServeMux()
+	h.adminRoutes(mux)
 	mux.HandleFunc("GET /api/health", func(w http.ResponseWriter, r *http.Request) {
 		if err := h.Repo.Pool.Ping(r.Context()); err != nil {
 			writeJSON(w, 503, map[string]string{"error": "База данных недоступна"})

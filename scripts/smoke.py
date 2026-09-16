@@ -2,9 +2,9 @@
 """Real REST + database smoke test; run against a running demo stack."""
 import json, os, urllib.request, urllib.error
 BASE=os.environ.get('API_URL','http://localhost:3000/api')
-def call(path, body=None, status=200):
+def call(path, body=None, status=200, method=None):
     data=None if body is None else json.dumps(body,ensure_ascii=False).encode()
-    req=urllib.request.Request(BASE+path,data=data,headers={'Content-Type':'application/json'})
+    req=urllib.request.Request(BASE+path,data=data,headers={'Content-Type':'application/json'},method=method)
     try:
         response=urllib.request.urlopen(req,timeout=20)
     except urllib.error.HTTPError as e:
@@ -31,3 +31,23 @@ for kind in ['APPLICATION','QUESTION']:
     call('/requests/'+r['id']+'/mock-next-status',{},409)
 assert len(call('/requests'))>=6
 print('PASS: health, validation, classification, routing, detail, list, status history, terminal states, applications/questions')
+
+# The organization console and resident view share one persistent history.
+for kind in ['EMERGENCY','COMPLAINT']:
+    r=call('/requests',{'description':'Проверка кабинета УК','address':'г. Москва, ул. Тестовая, д. 1','kind':kind},201)
+    path='/admin/requests/'+r['id']
+    assert call(path)['kind']==kind
+    call(path+'/status',{'status':'RESOLVED','comment':''},409,'PATCH')
+    call(path+'/status',{'status':'REJECTED','comment':'  '},400,'PATCH')
+    for target in ['ACCEPTED','IN_PROGRESS','RESOLVED']:
+        updated=call(path+'/status',{'status':target,'comment':'Комментарий УК: '+target},method='PATCH')
+        assert updated['status']==target
+    history=call('/requests/'+r['id']+'/history')
+    assert [h['status'] for h in history]==['CREATED','ACCEPTED','IN_PROGRESS','RESOLVED']
+    assert history[-1]['comment']=='Комментарий УК: RESOLVED' and history[-1]['actor']=='УК · демо'
+    call(path+'/status',{'status':'ACCEPTED'},409,'PATCH')
+assert len(call('/admin/requests'))>=len(call('/requests'))
+house=call('/house')
+assert house['totalArea']==12480 and house['livingArea']==9360 and house['organization']=='УК «Тестовая»'
+assert len(call('/organizations'))==2
+print('PASS: new kinds, admin transitions, rejection validation, resident-visible comments, house data')

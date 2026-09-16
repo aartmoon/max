@@ -9,11 +9,13 @@ import {
   useLocation,
 } from "react-router-dom";
 import { useEffect } from "react";
+import MyHouse from "./pages/MyHouse";
+import Admin from "./pages/Admin";
 import Home from "./pages/Home";
 import NewRequest from "./pages/NewRequest";
 import Requests from "./pages/Requests";
 import RequestDetail from "./pages/RequestDetail";
-import { maxBridge } from "./integration/max";
+import { MaxIntegration } from "./integration/MaxIntegration";
 import "./styles.css";
 function App() {
   const location = useLocation();
@@ -26,11 +28,19 @@ function App() {
         <Link className="brand" to="/">
           <span>⌂</span> Твой дом<span className="brand-dot">.</span>
         </Link>
-        <span className="demo-label">ДЕМО</span>
+        <Link
+          className="demo-label"
+          to={location.pathname.startsWith("/admin") ? "/" : "/admin"}
+        >
+          {location.pathname.startsWith("/admin") ? "ЖИТЕЛЮ" : "КАБИНЕТ УК"}
+        </Link>
       </header>
       <main>
         <Routes>
           <Route path="/" element={<Home />} />
+          <Route path="/house" element={<MyHouse />} />
+          <Route path="/admin" element={<Admin />} />
+          <Route path="/admin/requests/:id" element={<RequestDetail admin />} />
           <Route path="/requests/new" element={<NewRequest />} />
           <Route path="/requests" element={<Requests />} />
           <Route path="/requests/:id" element={<RequestDetail />} />
@@ -53,17 +63,21 @@ function App() {
           <span>＋</span>Создать
         </NavLink>
         <NavLink to="/requests" end>
-          <span>▤</span>Обращения
+          <span>▤</span>Заявки
+        </NavLink>
+        <NavLink to="/house">
+          <span>⌂</span>Мой дом
         </NavLink>
       </nav>
     </>
   );
 }
-maxBridge.ready();
 ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode>
     <BrowserRouter>
-      <App />
+      <MaxIntegration>
+        <App />
+      </MaxIntegration>
     </BrowserRouter>
   </React.StrictMode>,
 );

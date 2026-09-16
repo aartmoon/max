@@ -1,5 +1,6 @@
-import { useState, type FormEvent } from "react";
+import { useState, useEffect, useRef, type FormEvent } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
+import { useMaxBridge } from "../integration/MaxIntegration";
 import { api } from "../api";
 import { kinds, type Kind } from "../types";
 import { Back, ErrorMessage } from "../components/UI";
@@ -7,16 +8,22 @@ const testAddress = "г. Москва, ул. Тестовая, д. 1";
 export default function NewRequest() {
   const [query] = useSearchParams();
   const requested = query.get("kind");
-  const kind: Kind =
-    requested === "APPLICATION" || requested === "QUESTION"
-      ? requested
-      : "PROBLEM";
+  const [kind, setKind] = useState<Kind>(
+    requested && requested in kinds ? (requested as Kind) : "APPLICATION",
+  );
   const [description, setDescription] = useState(""),
     [address, setAddress] = useState(testAddress),
     [photo, setPhoto] = useState<File | null>(null),
     [error, setError] = useState(""),
     [busy, setBusy] = useState(false);
   const navigate = useNavigate();
+  const bridge = useMaxBridge();
+  const initialKind = useRef(kind);
+  const dirty = Boolean(description.trim() || photo || address !== testAddress || kind !== initialKind.current);
+  useEffect(() => {
+    bridge.closingConfirmation(dirty);
+    return () => bridge.closingConfirmation(false);
+  }, [bridge, dirty]);
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (busy) return;
@@ -45,13 +52,46 @@ export default function NewRequest() {
   return (
     <>
       <Back />
-      <div className="eyebrow">НОВОЕ ОБРАЩЕНИЕ</div>
-      <h1>{kind === "PROBLEM" ? "Что случилось?" : kinds[kind]}</h1>
+      <div className="eyebrow">НОВАЯ ЗАЯВКА</div>
+      <h1>Новая заявка</h1>
       <p className="intro">
-        Опишите ситуацию. Мы сохраним обращение и определим, кому его направить.
+        Опишите ситуацию. Мы сохраним заявку и определим, кому его направить.
       </p>
       <form className="panel form" onSubmit={submit}>
         <fieldset disabled={busy}>
+          <label htmlFor="kind">
+            Тип заявки <span>*</span>
+          </label>
+          <select
+            id="kind"
+            value={kind}
+            onChange={(e) => setKind(e.target.value as Kind)}
+          >
+            {(
+              [
+                "APPLICATION",
+                "QUESTION",
+                "EMERGENCY",
+                "PROBLEM",
+                "COMPLAINT",
+              ] as Kind[]
+            ).map((value) => (
+              <option key={value} value={value}>
+                {kinds[value]}
+              </option>
+            ))}
+          </select>
+          <p className={kind === "EMERGENCY" ? "urgent-note" : "type-hint"}>
+            {kind === "EMERGENCY"
+              ? "Экстренная заявка будет выделена в кабинете УК. В демо она не вызывает аварийную службу."
+              : kind === "QUESTION"
+                ? "Уточните вопрос по обслуживанию вашего дома."
+                : kind === "COMPLAINT"
+                  ? "Расскажите, что вас не устраивает и какого решения вы ждёте."
+                  : kind === "PROBLEM"
+                    ? "Опишите неисправность или проблему в доме."
+                    : "Оставьте запрос на обслуживание или помощь управляющей компании."}
+          </p>
           <label htmlFor="description">
             {kind === "QUESTION" ? "Ваш вопрос" : "Описание"} <span>*</span>
           </label>
@@ -130,12 +170,12 @@ export default function NewRequest() {
           </div>
           {error && <ErrorMessage message={error} />}
           <button className="button primary full" type="submit">
-            {busy ? "Создаём обращение…" : "Продолжить"}
+            {busy ? "Создаём заявку…" : "Продолжить"}
             <span>→</span>
           </button>
         </fieldset>
         <p className="form-note">
-          Тестовый режим: обращение не отправляется в реальные организации.
+          Тестовый режим: заявка не отправляется в реальные организации.
         </p>
       </form>
     </>

@@ -22,9 +22,9 @@ export default function Requests() {
     <>
       <Back />
       <div className="page-title">
-        <h1>Мои обращения</h1>
+        <h1>Мои заявки</h1>
         <Link className="text-button" to="/requests/new">
-          + Новое
+          + Новая заявка
         </Link>
       </div>
       <p className="intro">Вся история решения вопросов вашего дома.</p>
@@ -41,9 +41,9 @@ export default function Requests() {
         <div className="panel empty">
           <span>⌂</span>
           <h2>Пока здесь тихо</h2>
-          <p>Ваше первое обращение появится здесь.</p>
+          <p>Ваша первая заявка появится здесь.</p>
           <Link className="button primary" to="/requests/new">
-            Сообщить о проблеме
+            Создать заявку
           </Link>
         </div>
       ) : (

@@ -1,6 +1,7 @@
 export type Status =
   "CREATED" | "SENT" | "ACCEPTED" | "IN_PROGRESS" | "RESOLVED" | "REJECTED";
-export type Kind = "PROBLEM" | "APPLICATION" | "QUESTION";
+export type Kind =
+  "PROBLEM" | "APPLICATION" | "QUESTION" | "EMERGENCY" | "COMPLAINT";
 export interface RequestItem {
   id: string;
   userId: string;
@@ -22,6 +23,8 @@ export interface HistoryItem {
   requestId: string;
   status: Status;
   createdAt: string;
+  comment: string;
+  actor: string;
 }
 export const statuses: Record<Status, string> = {
   CREATED: "Создано",
@@ -32,9 +35,11 @@ export const statuses: Record<Status, string> = {
   REJECTED: "Отклонено",
 };
 export const kinds: Record<Kind, string> = {
-  PROBLEM: "Проблема дома",
-  APPLICATION: "Заявка в УК",
+  PROBLEM: "Проблема",
+  APPLICATION: "Запрос",
   QUESTION: "Вопрос",
+  EMERGENCY: "Экстренно",
+  COMPLAINT: "Жалоба",
 };
 export const categories: Record<string, string> = {
   PIPE_LEAK: "Протечка трубы",
@@ -46,3 +51,27 @@ export const date = (s: string) =>
   new Intl.DateTimeFormat("ru-RU", { day: "numeric", month: "long" }).format(
     new Date(s),
   );
+
+export interface House {
+  id: string;
+  address: string;
+  totalArea: number;
+  livingArea: number;
+  floors: number;
+  entrances: number;
+  apartments: number;
+  yearBuilt: number;
+  organization: string;
+  manager: string;
+  contact: string;
+}
+export interface Organization {
+  id: string;
+  name: string;
+}
+export const adminTransitions: Partial<Record<Status, Status[]>> = {
+  CREATED: ["ACCEPTED", "REJECTED"],
+  SENT: ["ACCEPTED", "REJECTED"],
+  ACCEPTED: ["IN_PROGRESS", "REJECTED"],
+  IN_PROGRESS: ["RESOLVED", "REJECTED"],
+};

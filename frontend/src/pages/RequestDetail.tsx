@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
-import { api } from "../api";
+import AdminStatusForm from "../components/AdminStatusForm";
+import { api, adminApi } from "../api";
 import {
   date,
   statuses,
@@ -10,7 +11,8 @@ import {
   type HistoryItem,
 } from "../types";
 import { ErrorMessage, Loading, StatusBadge } from "../components/UI";
-export default function RequestDetail() {
+export default function RequestDetail({ admin = false }: { admin?: boolean }) {
+  const client = admin ? adminApi : api;
   const { id = "" } = useParams();
   const [item, setItem] = useState<RequestItem | null>(null),
     [history, setHistory] = useState<HistoryItem[]>([]),
@@ -23,9 +25,9 @@ export default function RequestDetail() {
     setItem(null);
     setError("");
     Promise.all([
-      api.get(id, c.signal),
-      api.history(id, c.signal),
-      api.config(),
+      client.get(id, c.signal),
+      client.history(id, c.signal),
+      admin ? Promise.resolve({ mockStatusEnabled: false }) : api.config(),
     ])
       .then(([r, h, config]) => {
         if (!c.signal.aborted) {
@@ -38,7 +40,7 @@ export default function RequestDetail() {
         if (!c.signal.aborted) setError(e.message);
       });
     return () => c.abort();
-  }, [id, retry]);
+  }, [id, retry, admin]);
   async function next(reject = false) {
     setBusy(true);
     setError("");
@@ -54,8 +56,8 @@ export default function RequestDetail() {
   }
   return (
     <>
-      <Link className="back" to="/requests">
-        ← Мои обращения
+      <Link className="back" to={admin ? "/admin" : "/requests"}>
+        {admin ? "← Заявки жителей" : "← Мои заявки"}
       </Link>
       {error && (
         <>
@@ -72,17 +74,40 @@ export default function RequestDetail() {
           <div className="eyebrow">
             {kinds[item.kind]} · № {item.id}
           </div>
-          <h1>Обращение сохранено</h1>
+          <h1>{admin ? `Заявка № ${item.id}` : "Заявка сохранена"}</h1>
           <p className="intro">
-            Создано {date(item.createdAt)}. Все изменения появятся здесь.
+            Создана {date(item.createdAt)}. Все изменения появятся здесь.
           </p>
+          {admin && (
+            <>
+              <p className="admin-notice">
+                Демонстрационный кабинет организации · изменения видны жителю.
+              </p>
+              <AdminStatusForm
+                key={`${item.id}-${item.status}`}
+                item={item}
+                onUpdated={async () => {
+                  const [r, h] = await Promise.all([
+                    adminApi.get(id),
+                    adminApi.history(id),
+                  ]);
+                  setItem(r);
+                  setHistory(h);
+                }}
+              />
+            </>
+          )}
           <section className="panel detail">
             <div className="row">
-              <h2>Детали обращения</h2>
+              <h2>Детали заявки</h2>
               <StatusBadge status={item.status} />
             </div>
             <dl>
-              <dt>Проблема / описание</dt>
+              <dt>Тип заявки</dt>
+              <dd className={item.kind === "EMERGENCY" ? "urgent-label" : ""}>
+                {kinds[item.kind]}
+              </dd>
+              <dt>Описание</dt>
               <dd className="description">{item.description}</dd>
               <dt>Категория</dt>
               <dd>
@@ -100,20 +125,20 @@ export default function RequestDetail() {
             </dl>
             {item.hasPhoto && (
               <a
-                href={`/api/requests/${id}/photo`}
+                href={`/api/${admin ? "admin/" : ""}requests/${id}/photo`}
                 target="_blank"
                 rel="noreferrer"
               >
                 <img
                   className="attachment"
-                  src={`/api/requests/${id}/photo`}
-                  alt="Фото к обращению"
+                  src={`/api/${admin ? "admin/" : ""}requests/${id}/photo`}
+                  alt="Фото к заявке"
                 />
               </a>
             )}
           </section>
           <section className="panel">
-            <h2>Текст обращения</h2>
+            <h2>Текст заявки</h2>
             <p className="request-text">{item.text}</p>
           </section>
           <section className="panel">
@@ -122,7 +147,10 @@ export default function RequestDetail() {
               {history.map((h) => (
                 <li key={h.id}>
                   <strong>{statuses[h.status]}</strong>
-                  <small>{new Date(h.createdAt).toLocaleString("ru-RU")}</small>
+                  <small>
+                    {new Date(h.createdAt).toLocaleString("ru-RU")} · {h.actor}
+                  </small>
+                  {h.comment && <p className="history-comment">{h.comment}</p>}
                 </li>
               ))}
             </ol>
@@ -132,7 +160,7 @@ export default function RequestDetail() {
               <span className="eyebrow">ДЛЯ ДЕМОНСТРАЦИИ</span>
               <p>Имитируйте обновление от ответственной организации.</p>
               {item.status === "RESOLVED" || item.status === "REJECTED" ? (
-                <p>Обращение завершено.</p>
+                <p>Заявка завершена.</p>
               ) : (
                 <div className="demo-buttons">
                   <button
