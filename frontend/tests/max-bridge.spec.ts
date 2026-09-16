@@ -25,7 +25,7 @@ test("MAX SDK loads, ready runs after render and native back works for launch ro
     )
     .toBe(1);
   await page.evaluate(() => (window as any).bridgeCalls.handlers[0]());
-  await expect(page).toHaveURL(/\/$/);
+  await expect(page).toHaveURL(/\/max\/?$/);
   await expect
     .poll(() => page.evaluate(() => (window as any).bridgeCalls.visible))
     .toBe(false);
@@ -46,7 +46,7 @@ test("MAX SDK loads, ready runs after render and native back works for launch ro
     .poll(() => page.evaluate(() => (window as any).bridgeCalls.closing))
     .toBe(false);
   await page.evaluate(() => (window as any).bridgeCalls.handlers[0]());
-  await expect(page).toHaveURL(/\/$/);
+  await expect(page).toHaveURL(/\/max\/?$/);
   expect(
     await page.evaluate(() => (window as any).bridgeCalls.handlers.length),
   ).toBe(0);

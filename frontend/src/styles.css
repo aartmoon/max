@@ -788,6 +788,159 @@ select:focus {
 .bottom-nav a {
   min-width: 60px;
 }
+@media (min-width: 900px) {
+  header {
+    max-width: 1180px;
+    padding: 28px 40px;
+  }
+  .brand {
+    font-size: 26px;
+  }
+  .demo-label {
+    padding: 7px 11px;
+  }
+  main {
+    max-width: 1120px;
+    padding: 56px 32px 132px;
+  }
+  h1 {
+    font-size: 44px;
+  }
+  .hero {
+    min-height: 390px;
+    padding: 36px 0 56px;
+  }
+  .hero h1 {
+    max-width: 660px;
+    font-size: 62px;
+    letter-spacing: -2.4px;
+  }
+  .hero p {
+    max-width: 600px;
+    font-size: 17px;
+  }
+  .house-art {
+    width: 280px;
+    height: 280px;
+    margin: 0 42px 18px 70px;
+  }
+  .house-art > span {
+    font-size: 260px;
+    line-height: 250px;
+  }
+  .house-art b {
+    width: 62px;
+    height: 62px;
+    font-size: 30px;
+  }
+  .hero .button {
+    min-width: 320px;
+  }
+  .action-grid {
+    gap: 20px;
+  }
+  .action-card {
+    min-height: 190px;
+    padding: 30px;
+  }
+  .action-card p {
+    max-width: 340px;
+    font-size: 14px;
+  }
+  .icon {
+    margin-bottom: 30px;
+  }
+  .how {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    column-gap: 26px;
+    margin-top: 48px;
+  }
+  .how h2 {
+    grid-column: 1 / -1;
+    margin-bottom: 24px;
+  }
+  .how > div {
+    margin-bottom: 0;
+  }
+  .how p {
+    font-size: 14px;
+  }
+  .my-requests {
+    margin-top: 34px;
+    padding: 26px 30px;
+  }
+  .panel {
+    padding: 32px;
+  }
+  main > .form {
+    max-width: 780px;
+  }
+  .request-list {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 18px;
+  }
+  .request-list .request-card {
+    min-height: 220px;
+    margin-bottom: 0;
+  }
+  .stat-grid {
+    gap: 18px;
+  }
+  .stat-grid > div {
+    padding: 24px;
+  }
+  .admin-filters {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+  .admin-filters label:first-child {
+    grid-column: auto;
+  }
+  .house-banner {
+    padding: 32px 38px;
+  }
+  .house-facts {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+  .detail dl {
+    display: grid;
+    grid-template-columns: 180px minmax(0, 1fr);
+    column-gap: 30px;
+  }
+  .detail dt,
+  .detail dd {
+    margin-top: 18px;
+  }
+  .request-text {
+    max-width: 780px;
+  }
+  .bottom-nav {
+    bottom: 20px;
+    width: min(calc(100% - 64px), 1040px);
+    justify-content: center;
+    gap: 34px;
+    padding: 10px 18px;
+    border: 1px solid #dfe6dc;
+    border-radius: 18px;
+    box-shadow: 0 12px 35px rgb(45 70 57 / 12%);
+  }
+  .bottom-nav a {
+    flex-direction: row;
+    gap: 8px;
+    min-width: 0;
+    padding: 8px 18px;
+    border-radius: 10px;
+    font-size: 13px;
+  }
+  .bottom-nav a span {
+    font-size: 19px;
+    line-height: 20px;
+  }
+  .bottom-nav a.active {
+    background: #edf2e9;
+  }
+}
 @media (max-width: 400px) {
   .stat-grid {
     gap: 7px;
