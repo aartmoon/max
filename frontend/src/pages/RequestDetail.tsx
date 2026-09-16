@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import AdminStatusForm from "../components/AdminStatusForm";
 import { api, adminApi } from "../api";
+import { apiPath } from "../paths";
 import {
   date,
   statuses,
@@ -125,13 +126,17 @@ export default function RequestDetail({ admin = false }: { admin?: boolean }) {
             </dl>
             {item.hasPhoto && (
               <a
-                href={`/api/${admin ? "admin/" : ""}requests/${id}/photo`}
+                href={apiPath(
+                  `/${admin ? "admin/" : ""}requests/${id}/photo`,
+                )}
                 target="_blank"
                 rel="noreferrer"
               >
                 <img
                   className="attachment"
-                  src={`/api/${admin ? "admin/" : ""}requests/${id}/photo`}
+                  src={apiPath(
+                    `/${admin ? "admin/" : ""}requests/${id}/photo`,
+                  )}
                   alt="Фото к заявке"
                 />
               </a>

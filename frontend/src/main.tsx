@@ -16,6 +16,7 @@ import NewRequest from "./pages/NewRequest";
 import Requests from "./pages/Requests";
 import RequestDetail from "./pages/RequestDetail";
 import { MaxIntegration } from "./integration/MaxIntegration";
+import { appBasename } from "./paths";
 import "./styles.css";
 function App() {
   const location = useLocation();
@@ -74,7 +75,7 @@ function App() {
 }
 ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode>
-    <BrowserRouter>
+    <BrowserRouter basename={appBasename}>
       <MaxIntegration>
         <App />
       </MaxIntegration>

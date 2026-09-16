@@ -3,7 +3,7 @@ test.beforeEach(async ({page}) => { await page.route("https://st.max.ru/js/max-w
 test("resident creates an issue with a photo and follows status history", async ({
   page,
 }) => {
-  await page.goto("/");
+  await page.goto("/max/");
   await page.screenshot({
     path: "test-results/home-mobile.png",
     fullPage: true,
@@ -55,17 +55,17 @@ test("resident creates an issue with a photo and follows status history", async 
   ).toBe(true);
 });
 test("question and application forms are accessible", async ({ page }) => {
-  await page.goto("/");
+  await page.goto("/max/");
   await page.getByRole("link", { name: "Создать заявку" }).click();
   await page.getByLabel("Тип заявки").selectOption("QUESTION");
   await expect(page.getByLabel("Ваш вопрос")).toBeVisible();
-  await page.goto("/requests/new?kind=APPLICATION");
+  await page.goto("/max/requests/new?kind=APPLICATION");
   await expect(
     page.getByRole("heading", { name: "Новая заявка" }),
   ).toBeVisible();
 });
 test("server error is shown without losing input", async ({ page }) => {
-  await page.goto("/requests/new");
+  await page.goto("/max/requests/new");
   await page.getByLabel("Описание").fill("Не работает лифт");
   await page.route("**/api/requests", (route) =>
     route.fulfill({
@@ -86,7 +86,7 @@ test("emergency request is processed by UK and its comments reach the resident",
   page,
 }) => {
   const description = `Экстренно течёт труба — ${Date.now()}`;
-  await page.goto("/requests/new");
+  await page.goto("/max/requests/new");
   await page.getByLabel("Тип заявки").selectOption("EMERGENCY");
   await expect(
     page.getByText("В демо она не вызывает аварийную службу.", {
@@ -130,7 +130,7 @@ test("emergency request is processed by UK and its comments reach the resident",
 test("house profile displays data and works at narrow and desktop widths", async ({
   page,
 }) => {
-  await page.goto("/house");
+  await page.goto("/max/house");
   await expect(
     page.getByRole("heading", { name: "Мой дом", exact: true }),
   ).toBeVisible();

@@ -11,7 +11,7 @@ test("MAX SDK loads, ready runs after render and native back works for launch ro
   await page.route(sdk, (route) =>
     route.fulfill({ contentType: "application/javascript", body: stub }),
   );
-  await page.goto("/");
+  await page.goto("/max/");
   await expect(page).toHaveURL(/\/house$/);
   await expect
     .poll(() => page.evaluate(() => (window as any).bridgeCalls?.ready))
@@ -53,7 +53,7 @@ test("MAX SDK loads, ready runs after render and native back works for launch ro
 });
 test("website works if SDK is unavailable", async ({ page }) => {
   await page.route(sdk, (route) => route.abort());
-  await page.goto("/");
+  await page.goto("/max/");
   await page
     .getByRole("link", { name: "Создать заявку", exact: false })
     .first()
@@ -79,7 +79,7 @@ test("late SDK is used and unknown launch parameter cannot navigate externally",
       ),
     });
   });
-  await page.goto("/", { waitUntil: "domcontentloaded" });
+  await page.goto("/max/", { waitUntil: "domcontentloaded" });
   await expect(
     page.getByRole("link", { name: "Создать заявку", exact: false }).first(),
   ).toBeVisible();

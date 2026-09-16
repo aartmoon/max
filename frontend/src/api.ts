@@ -5,10 +5,11 @@ import type {
   Organization,
   Status,
 } from "./types";
+import { apiPath } from "./paths";
 async function call<T>(path: string, init?: RequestInit): Promise<T> {
   let response: Response;
   try {
-    response = await fetch(`/api${path}`, {
+    response = await fetch(apiPath(path), {
       ...init,
       signal: init?.signal ?? AbortSignal.timeout(20000),
     });
