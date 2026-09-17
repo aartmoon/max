@@ -5,7 +5,10 @@ import (
 	_ "embed"
 	"errors"
 	"fmt"
+<<<<<<< HEAD
 	"strings"
+=======
+>>>>>>> codex/gar-init
 	"time"
 
 	"github.com/jackc/pgx/v5"
@@ -128,14 +131,23 @@ func (s *Store) Finalize(ctx context.Context, sourceType string, sourceDate time
 	if sourceType != "xml" && sourceType != "demo" {
 		return fmt.Errorf("invalid GAR source type %q", sourceType)
 	}
+<<<<<<< HEAD
 	if err := s.executeStatements(ctx, indexesSQL); err != nil {
 		return fmt.Errorf("create GAR indexes: %w", err)
 	}
+=======
+>>>>>>> codex/gar-init
 	tx, err := s.pool.Begin(ctx)
 	if err != nil {
 		return fmt.Errorf("begin GAR finalization: %w", err)
 	}
 	defer tx.Rollback(ctx)
+<<<<<<< HEAD
+=======
+	if _, err := tx.Exec(ctx, indexesSQL); err != nil {
+		return fmt.Errorf("create GAR indexes: %w", err)
+	}
+>>>>>>> codex/gar-init
 	if _, err := tx.Exec(ctx, searchSQL); err != nil {
 		return fmt.Errorf("build GAR search addresses: %w", err)
 	}
@@ -147,6 +159,7 @@ func (s *Store) Finalize(ctx context.Context, sourceType string, sourceDate time
 	}
 	return nil
 }
+<<<<<<< HEAD
 
 func (s *Store) executeStatements(ctx context.Context, sql string) error {
 	for index, statement := range strings.Split(sql, ";") {
@@ -160,3 +173,5 @@ func (s *Store) executeStatements(ctx context.Context, sql string) error {
 	}
 	return nil
 }
+=======
+>>>>>>> codex/gar-init

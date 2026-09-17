@@ -119,7 +119,11 @@ CREATE TABLE IF NOT EXISTS gar_stead_params (
 );
 
 CREATE TABLE IF NOT EXISTS gar_change_history (
+<<<<<<< HEAD
     change_id bigint, object_id bigint, address_object_id uuid,
+=======
+    change_id bigint, object_id bigint, address_object_id bigint,
+>>>>>>> codex/gar-init
     operation_type_id integer, normative_doc_id bigint, change_date date,
     raw_attributes jsonb NOT NULL
 );
@@ -151,6 +155,7 @@ CREATE TABLE IF NOT EXISTS gar_search_addresses (
 
 -- Upgrade empty tables created by the retired backend ZIP importer. These
 -- ALTER statements are idempotent and preserve any existing data.
+<<<<<<< HEAD
 -- OBJECTID/OBJECTGUID identify the logical GAR object and repeat across its
 -- historical versions. The retired importer incorrectly made them unique.
 ALTER TABLE gar_address_objects DROP CONSTRAINT IF EXISTS gar_address_objects_pkey;
@@ -172,6 +177,8 @@ ALTER TABLE gar_change_history
     ALTER COLUMN address_object_id TYPE uuid
     USING address_object_id::text::uuid;
 
+=======
+>>>>>>> codex/gar-init
 ALTER TABLE gar_address_objects ADD COLUMN IF NOT EXISTS id bigint;
 ALTER TABLE gar_address_objects ADD COLUMN IF NOT EXISTS change_id bigint;
 ALTER TABLE gar_address_objects ADD COLUMN IF NOT EXISTS operation_type_id integer;
@@ -205,6 +212,9 @@ ALTER TABLE gar_houses ADD COLUMN IF NOT EXISTS update_date date;
 ALTER TABLE gar_houses ADD COLUMN IF NOT EXISTS start_date date;
 ALTER TABLE gar_houses ADD COLUMN IF NOT EXISTS end_date date;
 ALTER TABLE gar_houses ADD COLUMN IF NOT EXISTS raw_attributes jsonb NOT NULL DEFAULT '{}';
+<<<<<<< HEAD
 ALTER TABLE gar_houses ALTER COLUMN house_num DROP NOT NULL;
+=======
+>>>>>>> codex/gar-init
 ALTER TABLE gar_houses ALTER COLUMN add_num1 DROP NOT NULL;
 ALTER TABLE gar_houses ALTER COLUMN add_num2 DROP NOT NULL;

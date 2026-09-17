@@ -84,6 +84,7 @@ func TestParseAcceptsFamilySpecificChildNames(t *testing.T) {
 	}
 }
 
+<<<<<<< HEAD
 func TestParseChangeHistoryAcceptsAddressObjectUUID(t *testing.T) {
 	input := `<ITEM CHANGEID="10" OBJECTID="20" ADROBJECTID="7f89b3a2-70af-4957-9395-c72f882e56f5" OPERTYPEID="30"/>`
 	var row []any
@@ -104,6 +105,8 @@ func TestParseChangeHistoryAcceptsAddressObjectUUID(t *testing.T) {
 	}
 }
 
+=======
+>>>>>>> codex/gar-init
 func TestParseRejectsMalformedTypedAttributes(t *testing.T) {
 	tests := []struct {
 		name  string

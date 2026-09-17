@@ -119,7 +119,11 @@ func buildFamilies() []Family {
 		family("steads", "AS_STEADS_", "gar_steads", 14, []string{"STEAD"}, property("number", "NUMBER")),
 		family("stead_params", "AS_STEADS_PARAMS_", "gar_stead_params", 15, []string{"PARAM"}, commonParams),
 		family("change_history", "AS_CHANGE_HISTORY_", "gar_change_history", 16, []string{"CHANGEHISTORY", "ITEM"}, []Field{
+<<<<<<< HEAD
 			f("change_id", "CHANGEID", Int64), f("object_id", "OBJECTID", Int64), f("address_object_id", "ADROBJECTID", UUID),
+=======
+			f("change_id", "CHANGEID", Int64), f("object_id", "OBJECTID", Int64), f("address_object_id", "ADROBJECTID", Int64),
+>>>>>>> codex/gar-init
 			f("operation_type_id", "OPERTYPEID", Int), f("normative_doc_id", "NDOCID", Int64), f("change_date", "CHANGEDATE", Date),
 		}),
 		family("normative_docs", "AS_NORMATIVE_DOCS_", "gar_normative_docs", 17, []string{"NORMDOC", "DOCUMENT"}, []Field{
