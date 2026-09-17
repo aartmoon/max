@@ -21,6 +21,7 @@
 - Build secondary indexes only after all raw files import successfully.
 - A completed database must log `GAR database already initialized` and exit 0.
 - New requests require a valid active GAR house; apartment selection remains optional.
+- Demo fallback is enabled only by `GAR_ALLOW_DEMO_DATA=true` and only when no supported XML files exist.
 
 ---
 
@@ -223,6 +224,8 @@ git commit -m "feat: add restart-safe GAR PostgreSQL store"
 **Files:**
 - Create: `gar-init/internal/importer/run.go`
 - Create: `gar-init/internal/importer/run_test.go`
+- Create: `gar-init/internal/db/demo.go`
+- Create: `gar-init/internal/db/demo_test.go`
 - Create: `gar-init/cmd/gar-init/main.go`
 - Create: `gar-init/Dockerfile`
 - Create: `gar-init/.dockerignore`
@@ -233,7 +236,7 @@ git commit -m "feat: add restart-safe GAR PostgreSQL store"
 
 - [ ] **Step 1: Write failing orchestration tests**
 
-Use a fake store to prove initialized runs do not discover/open files, completed files are skipped, progress logs occur at exact multiples, failure stops later families, finalization happens once, and expected log lines contain filename, family, rows, and duration.
+Use a fake store to prove initialized runs do not discover/open files, completed files are skipped, progress logs occur at exact multiples, failure stops later families, finalization happens once, and expected log lines contain filename, family, rows, and duration. Prove missing or empty input invokes demo seeding only when `AllowDemoData` is true, while an incomplete XML snapshot always fails.
 
 - [ ] **Step 2: Run tests and verify RED**
 
@@ -243,7 +246,7 @@ Expected: failure because orchestration does not exist.
 
 - [ ] **Step 3: Implement orchestration and signal-aware main**
 
-`main` loads environment variables, creates a signal context, connects with pgxpool, pings PostgreSQL, ensures schema, acquires the advisory lock, calls `Run`, and exits non-zero on error. Never wrap the multi-hour import in a short global timeout.
+`main` loads environment variables, creates a signal context, connects with pgxpool, pings PostgreSQL, ensures schema, acquires the advisory lock, calls `Run`, and exits non-zero on error. Never wrap the multi-hour import in a short global timeout. Add `Store.SeedDemo(ctx)` as one transaction containing a small Moscow address-object hierarchy, two houses, and apartments, followed by normal finalization with metadata source type `demo`.
 
 - [ ] **Step 4: Add a multi-stage Dockerfile**
 
@@ -293,7 +296,7 @@ Expected: no `gar-init` service before the change.
 
 - [ ] **Step 2: Add local and production services**
 
-Use `build: ./gar-init` locally, the same PostgreSQL environment variables as the database, `${GAR_XML_PATH:-/home/user1/gar/xml}:/data/gar:ro`, `restart: "no"`, and the private backend network in production. Make backend depend on both healthy PostgreSQL and successful `gar-init` completion.
+Use `build: ./gar-init` locally, the same PostgreSQL environment variables as the database, optional `${GAR_XML_PATH:-./gar-data}:/data/gar:ro`, `GAR_ALLOW_DEMO_DATA: "true"`, `restart: "no"`, and the private backend network in production. Production mounts `${GAR_XML_PATH:-/home/user1/gar/xml}:/data/gar:ro` and sets `GAR_ALLOW_DEMO_DATA: "false"`. Make backend depend on both healthy PostgreSQL and successful `gar-init` completion.
 
 - [ ] **Step 3: Validate rendered Compose**
 
