@@ -8,6 +8,8 @@ test-results/
 
 .pnpm-store/
 .worktrees/
+gar-data/*.XML
+gar-data/*.xml
 
 certs/*.pem
 certs/*.crt
