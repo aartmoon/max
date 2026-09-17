@@ -7,8 +7,9 @@ import (
 
 var ErrNotFound = errors.New("обращение не найдено")
 var ErrConflict = errors.New("переход статуса недоступен")
-var ErrInvalidFIASGUID = errors.New("некорректный FIAS GUID")
+var ErrInvalidAddressID = errors.New("некорректный идентификатор адреса ГАР")
 var ErrInvalidHouse = errors.New("выбранный объект не является домом")
+var ErrInvalidApartment = errors.New("выбранная квартира не относится к указанному дому")
 
 type ValidationError struct{ Message string }
 
@@ -20,7 +21,8 @@ type User struct {
 }
 type House struct {
 	ID              string     `json:"id"`
-	FIASGUID        string     `json:"fiasGuid,omitempty"`
+	GARObjectID     string     `json:"garObjectId,omitempty"`
+	ObjectGUID      string     `json:"objectGuid,omitempty"`
 	Address         string     `json:"address"`
 	CadastralNumber *string    `json:"cadastralNumber"`
 	CreatedAt       *time.Time `json:"createdAt,omitempty"`
@@ -35,22 +37,28 @@ type House struct {
 	Manager         string     `json:"manager"`
 	Contact         string     `json:"contact"`
 }
-type HouseIdentity struct {
-	FIASGUID        string
-	Address         string
-	CadastralNumber *string
+type AddressSearch struct {
+	Query          string
+	Kind           string
+	ParentObjectID *int64
+	Limit          int
 }
 type AddressSuggestion struct {
-	FIASGUID   string `json:"fiasGuid"`
-	Address    string `json:"address"`
-	ObjectType string `json:"objectType"`
+	ObjectID       string `json:"objectId"`
+	ObjectGUID     string `json:"objectGuid,omitempty"`
+	ParentObjectID string `json:"parentObjectId,omitempty"`
+	ObjectKind     string `json:"objectKind"`
+	DisplayName    string `json:"displayName"`
+	FullAddress    string `json:"fullAddress"`
 }
 type AddressInfo struct {
-	FIASGUID        string  `json:"fiasGuid"`
-	Address         string  `json:"address"`
-	PostalCode      *string `json:"postalCode"`
-	CadastralNumber *string `json:"cadastralNumber"`
-	ObjectType      string  `json:"objectType"`
+	ObjectID       string `json:"objectId"`
+	ObjectGUID     string `json:"objectGuid,omitempty"`
+	ParentObjectID string `json:"parentObjectId,omitempty"`
+	ObjectKind     string `json:"objectKind"`
+	DisplayName    string `json:"displayName"`
+	FullAddress    string `json:"fullAddress"`
+	IsActive       bool   `json:"isActive"`
 }
 type Organization struct {
 	ID   string `json:"id"`
@@ -68,6 +76,10 @@ type Request struct {
 	CreatedAt                 time.Time `json:"createdAt"`
 	Kind                      string    `json:"kind"`
 	Address                   string    `json:"address"`
+	HouseObjectID             string    `json:"houseObjectId"`
+	HouseObjectGUID           string    `json:"houseObjectGuid,omitempty"`
+	ApartmentObjectID         string    `json:"apartmentObjectId,omitempty"`
+	ApartmentObjectGUID       string    `json:"apartmentObjectGuid,omitempty"`
 	ResponsibleOrganization   string    `json:"responsibleOrganization"`
 	Text                      string    `json:"text"`
 	HasPhoto                  bool      `json:"hasPhoto"`

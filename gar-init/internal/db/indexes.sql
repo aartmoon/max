@@ -2,9 +2,9 @@ CREATE UNIQUE INDEX IF NOT EXISTS gar_address_objects_object_id_uq ON gar_addres
 CREATE INDEX IF NOT EXISTS gar_address_objects_guid_idx ON gar_address_objects(object_guid);
 CREATE INDEX IF NOT EXISTS gar_address_objects_name_idx ON gar_address_objects(lower(name));
 CREATE INDEX IF NOT EXISTS gar_addr_object_params_object_idx ON gar_addr_object_params(object_id, type_id);
-CREATE UNIQUE INDEX IF NOT EXISTS gar_adm_hierarchy_object_id_uq ON gar_adm_hierarchy(object_id);
+CREATE INDEX IF NOT EXISTS gar_adm_hierarchy_object_idx ON gar_adm_hierarchy(object_id);
 CREATE INDEX IF NOT EXISTS gar_adm_hierarchy_parent_idx ON gar_adm_hierarchy(parent_object_id, object_id);
-CREATE UNIQUE INDEX IF NOT EXISTS gar_mun_hierarchy_object_id_uq ON gar_mun_hierarchy(object_id);
+CREATE INDEX IF NOT EXISTS gar_mun_hierarchy_object_idx ON gar_mun_hierarchy(object_id);
 CREATE INDEX IF NOT EXISTS gar_mun_hierarchy_parent_idx ON gar_mun_hierarchy(parent_object_id, object_id);
 CREATE UNIQUE INDEX IF NOT EXISTS gar_houses_object_id_uq ON gar_houses(object_id);
 CREATE INDEX IF NOT EXISTS gar_houses_guid_idx ON gar_houses(object_guid);

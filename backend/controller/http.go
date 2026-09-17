@@ -8,9 +8,11 @@ import (
 	"mime"
 	"net/http"
 	"strconv"
+	"strings"
 	"tvoydom/domain"
 	"tvoydom/repository"
 	"tvoydom/service"
+	"unicode/utf8"
 )
 
 type Handler struct {
@@ -33,8 +35,13 @@ func (h Handler) Routes() http.Handler {
 	})
 	mux.HandleFunc("POST /api/requests", h.create)
 	mux.HandleFunc("GET /api/addresses/search", h.searchAddresses)
-	mux.HandleFunc("GET /api/addresses/{fiasGuid}", func(w http.ResponseWriter, r *http.Request) {
-		v, e := h.Addresses.GetByGUID(r.Context(), r.PathValue("fiasGuid"))
+	mux.HandleFunc("GET /api/addresses/{objectId}", func(w http.ResponseWriter, r *http.Request) {
+		objectID, e := parsePositiveID(r.PathValue("objectId"))
+		if e != nil {
+			respond(w, nil, e)
+			return
+		}
+		v, e := h.Addresses.GetAddress(r.Context(), objectID)
 		respond(w, v, e)
 	})
 	mux.HandleFunc("POST /api/houses/resolve", h.resolveHouse)
@@ -79,16 +86,39 @@ func (h Handler) Routes() http.Handler {
 }
 
 func (h Handler) searchAddresses(w http.ResponseWriter, r *http.Request) {
+	query := strings.TrimSpace(r.URL.Query().Get("q"))
+	if utf8.RuneCountInString(query) > 300 {
+		writeJSON(w, 400, map[string]string{"error": "Поисковый запрос слишком длинный"})
+		return
+	}
 	limit := 10
 	if raw := r.URL.Query().Get("limit"); raw != "" {
 		parsed, err := strconv.Atoi(raw)
 		if err != nil || parsed <= 0 || parsed > 50 {
-			writeJSON(w, 400, map[string]any{"error": map[string]string{"code": "invalid_request", "message": "Некорректный limit"}})
+			writeJSON(w, 400, map[string]string{"error": "Некорректный limit"})
 			return
 		}
 		limit = parsed
 	}
-	items, err := h.Addresses.Search(r.Context(), r.URL.Query().Get("q"), limit)
+	kind := strings.TrimSpace(r.URL.Query().Get("kind"))
+	if kind != "" && !validAddressKind(kind) {
+		writeJSON(w, 400, map[string]string{"error": "Некорректный тип адресного объекта"})
+		return
+	}
+	var parent *int64
+	if raw := strings.TrimSpace(r.URL.Query().Get("parentObjectId")); raw != "" {
+		value, err := parsePositiveID(raw)
+		if err != nil {
+			respond(w, nil, err)
+			return
+		}
+		parent = &value
+	}
+	if query == "" && parent == nil {
+		writeJSON(w, 400, map[string]string{"error": "Укажите поисковый запрос или родительский объект"})
+		return
+	}
+	items, err := h.Addresses.Search(r.Context(), domain.AddressSearch{Query: query, Kind: kind, ParentObjectID: parent, Limit: limit})
 	if err != nil {
 		respond(w, nil, err)
 		return
@@ -99,7 +129,7 @@ func (h Handler) searchAddresses(w http.ResponseWriter, r *http.Request) {
 func (h Handler) resolveHouse(w http.ResponseWriter, r *http.Request) {
 	r.Body = http.MaxBytesReader(w, r.Body, 16384)
 	var in struct {
-		FIASGUID string `json:"fiasGuid"`
+		ObjectID string `json:"objectId"`
 	}
 	decoder := json.NewDecoder(r.Body)
 	decoder.DisallowUnknownFields()
@@ -111,7 +141,7 @@ func (h Handler) resolveHouse(w http.ResponseWriter, r *http.Request) {
 		badBody(w, err)
 		return
 	}
-	v, e := h.Houses.Resolve(r.Context(), in.FIASGUID)
+	v, e := h.Houses.Resolve(r.Context(), in.ObjectID)
 	if e != nil {
 		respond(w, nil, e)
 		return
@@ -122,7 +152,8 @@ func (h Handler) resolveHouse(w http.ResponseWriter, r *http.Request) {
 func houseIdentityResponse(h domain.House) map[string]any {
 	return map[string]any{
 		"id":              h.ID,
-		"fiasGuid":        h.FIASGUID,
+		"garObjectId":     h.GARObjectID,
+		"objectGuid":      h.ObjectGUID,
 		"address":         h.Address,
 		"cadastralNumber": h.CadastralNumber,
 	}
@@ -149,7 +180,8 @@ func (h Handler) create(w http.ResponseWriter, r *http.Request) {
 		}
 		defer r.MultipartForm.RemoveAll()
 		in.Description = r.FormValue("description")
-		in.Address = r.FormValue("address")
+		in.HouseObjectID = r.FormValue("houseObjectId")
+		in.ApartmentObjectID = r.FormValue("apartmentObjectId")
 		in.Kind = r.FormValue("kind")
 		f, _, err := r.FormFile("photo")
 		if err == nil {
@@ -211,16 +243,36 @@ func respond(w http.ResponseWriter, v any, err error) {
 	case errors.Is(err, domain.ErrConflict):
 		code = 409
 		message = err.Error()
-	case errors.Is(err, domain.ErrInvalidFIASGUID):
+	case errors.Is(err, domain.ErrInvalidAddressID):
 		code = 400
 		message = err.Error()
 	case errors.Is(err, domain.ErrInvalidHouse):
+		code = 400
+		message = err.Error()
+	case errors.Is(err, domain.ErrInvalidApartment):
 		code = 400
 		message = err.Error()
 	default:
 		slog.Error("request failed", "error", err)
 	}
 	writeJSON(w, code, map[string]string{"error": message})
+}
+
+func parsePositiveID(raw string) (int64, error) {
+	value, err := strconv.ParseInt(strings.TrimSpace(raw), 10, 64)
+	if err != nil || value <= 0 {
+		return 0, domain.ErrInvalidAddressID
+	}
+	return value, nil
+}
+
+func validAddressKind(kind string) bool {
+	switch kind {
+	case "address_object", "house", "apartment", "room", "carplace", "stead":
+		return true
+	default:
+		return false
+	}
 }
 func writeJSON(w http.ResponseWriter, status int, v any) {
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")

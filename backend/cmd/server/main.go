@@ -37,7 +37,7 @@ func main() {
 		slog.Error("database initialization", "error", err)
 		os.Exit(1)
 	}
-	svc := service.RequestService{Repo: repo, Classifier: service.RuleClassifier{}, Router: service.RuleRouter{}, Notifications: service.NotificationService{Client: integration.MockMaxClient{}}, Housing: integration.MockHousingSystemGateway{}}
+	svc := service.RequestService{Repo: repo, Addresses: repo, Houses: repo, Classifier: service.RuleClassifier{}, Router: service.RuleRouter{}, Notifications: service.NotificationService{Client: integration.MockMaxClient{}}, Housing: integration.MockHousingSystemGateway{}}
 	houseSvc := service.HouseService{Repo: repo, Addresses: repo}
 	server := &http.Server{Addr: ":" + c.Port, Handler: (controller.Handler{Service: svc, Houses: houseSvc, Addresses: repo, Repo: repo, MockStatusEnabled: c.MockStatusEnabled}).Routes(), ReadHeaderTimeout: 5 * time.Second, ReadTimeout: 20 * time.Second, WriteTimeout: 30 * time.Second, IdleTimeout: 60 * time.Second}
 	stop, done := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
