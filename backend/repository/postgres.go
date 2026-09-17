@@ -20,6 +20,9 @@ var adminHouseMigration string
 //go:embed migrations/003_gar_house_identity.sql
 var garHouseIdentityMigration string
 
+//go:embed migrations/004_gar_address_selection.sql
+var garAddressSelectionMigration string
+
 func (p Postgres) Migrate(ctx context.Context) error {
 	tx, err := p.Pool.Begin(ctx)
 	if err != nil {
@@ -58,13 +61,24 @@ func (p Postgres) Migrate(ctx context.Context) error {
 			return err
 		}
 	}
+	if err = tx.QueryRow(ctx, `SELECT EXISTS(SELECT 1 FROM schema_migrations WHERE version=4)`).Scan(&exists); err != nil {
+		return err
+	}
+	if !exists {
+		if _, err = tx.Exec(ctx, garAddressSelectionMigration); err != nil {
+			return err
+		}
+		if _, err = tx.Exec(ctx, `INSERT INTO schema_migrations VALUES(4)`); err != nil {
+			return err
+		}
+	}
 	return tx.Commit(ctx)
 }
 
-const selectRequest = `SELECT r.id::text,r.user_id::text,r.house_id::text,r.description,r.problem_type,r.responsible_organization_id::text,r.status,r.deadline,r.created_at,r.kind,h.address,o.name,r.request_text,COALESCE(octet_length(r.photo),0)>0 FROM requests r JOIN houses h ON h.id=r.house_id JOIN organizations o ON o.id=r.responsible_organization_id `
+const selectRequest = `SELECT r.id::text,r.user_id::text,r.house_id::text,r.description,r.problem_type,r.responsible_organization_id::text,r.status,r.deadline,r.created_at,r.kind,COALESCE(NULLIF(r.address_snapshot,''),h.address),COALESCE(r.house_object_id::text,''),COALESCE(r.house_object_guid::text,''),COALESCE(r.apartment_object_id::text,''),COALESCE(r.apartment_object_guid::text,''),o.name,r.request_text,COALESCE(octet_length(r.photo),0)>0 FROM requests r JOIN houses h ON h.id=r.house_id JOIN organizations o ON o.id=r.responsible_organization_id `
 
 func scan(row pgx.Row) (r domain.Request, err error) {
-	err = row.Scan(&r.ID, &r.UserID, &r.HouseID, &r.Description, &r.ProblemType, &r.ResponsibleOrganizationID, &r.Status, &r.Deadline, &r.CreatedAt, &r.Kind, &r.Address, &r.ResponsibleOrganization, &r.Text, &r.HasPhoto)
+	err = row.Scan(&r.ID, &r.UserID, &r.HouseID, &r.Description, &r.ProblemType, &r.ResponsibleOrganizationID, &r.Status, &r.Deadline, &r.CreatedAt, &r.Kind, &r.Address, &r.HouseObjectID, &r.HouseObjectGUID, &r.ApartmentObjectID, &r.ApartmentObjectGUID, &r.ResponsibleOrganization, &r.Text, &r.HasPhoto)
 	if errors.Is(err, pgx.ErrNoRows) {
 		err = domain.ErrNotFound
 	}
@@ -76,11 +90,7 @@ func (p Postgres) Create(ctx context.Context, r domain.Request) (domain.Request,
 		return r, err
 	}
 	defer tx.Rollback(ctx)
-	err = tx.QueryRow(ctx, `INSERT INTO houses(address) VALUES($1) ON CONFLICT(address) DO UPDATE SET address=EXCLUDED.address RETURNING id::text`, r.Address).Scan(&r.HouseID)
-	if err != nil {
-		return r, err
-	}
-	err = tx.QueryRow(ctx, `INSERT INTO requests(user_id,house_id,description,problem_type,responsible_organization_id,status,deadline,created_at,kind,request_text,photo,photo_type) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12) RETURNING id::text`, r.UserID, r.HouseID, r.Description, r.ProblemType, r.ResponsibleOrganizationID, r.Status, r.Deadline, r.CreatedAt, r.Kind, r.Text, r.Photo, r.PhotoType).Scan(&r.ID)
+	err = tx.QueryRow(ctx, `INSERT INTO requests(user_id,house_id,description,problem_type,responsible_organization_id,status,deadline,created_at,kind,request_text,photo,photo_type,address_snapshot,house_object_id,house_object_guid,apartment_object_id,apartment_object_guid) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,NULLIF($14,'')::bigint,NULLIF($15,'')::uuid,NULLIF($16,'')::bigint,NULLIF($17,'')::uuid) RETURNING id::text`, r.UserID, r.HouseID, r.Description, r.ProblemType, r.ResponsibleOrganizationID, r.Status, r.Deadline, r.CreatedAt, r.Kind, r.Text, r.Photo, r.PhotoType, r.Address, r.HouseObjectID, r.HouseObjectGUID, r.ApartmentObjectID, r.ApartmentObjectGUID).Scan(&r.ID)
 	if err != nil {
 		return r, err
 	}

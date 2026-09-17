@@ -3,113 +3,91 @@ package service
 import (
 	"context"
 	"errors"
+	"strconv"
 	"testing"
+
 	"tvoydom/domain"
 )
 
-type houseAddressProvider struct {
-	info *domain.AddressInfo
-	err  error
+type fakeAddressProvider struct{ items map[int64]domain.AddressInfo }
+
+func (p fakeAddressProvider) Search(context.Context, domain.AddressSearch) ([]domain.AddressSuggestion, error) {
+	return []domain.AddressSuggestion{}, nil
 }
 
-func (p houseAddressProvider) Search(context.Context, string, int) ([]domain.AddressSuggestion, error) {
-	return nil, nil
-}
-
-func (p houseAddressProvider) GetByGUID(context.Context, string) (*domain.AddressInfo, error) {
-	if p.err != nil {
-		return nil, p.err
+func (p fakeAddressProvider) GetAddress(_ context.Context, objectID int64) (domain.AddressInfo, error) {
+	item, ok := p.items[objectID]
+	if !ok {
+		return domain.AddressInfo{}, domain.ErrNotFound
 	}
-	return p.info, nil
+	return item, nil
 }
 
-type houseRepository struct {
-	byGUID map[string]domain.House
-	nextID string
+type fakeHouseRepository struct {
+	byObjectID map[string]domain.House
+	nextID     string
 }
 
-func (r *houseRepository) GetHouseByFIASGUID(_ context.Context, guid string) (domain.House, error) {
-	h, ok := r.byGUID[guid]
+func (r *fakeHouseRepository) GetHouseByGARObjectID(_ context.Context, objectID int64) (domain.House, error) {
+	h, ok := r.byObjectID[strconv.FormatInt(objectID, 10)]
 	if !ok {
 		return domain.House{}, domain.ErrNotFound
 	}
 	return h, nil
 }
 
-func (r *houseRepository) ResolveHouse(_ context.Context, in domain.HouseIdentity) (domain.House, error) {
-	if h, ok := r.byGUID[in.FIASGUID]; ok {
+func (r *fakeHouseRepository) ResolveHouse(_ context.Context, info domain.AddressInfo) (domain.House, error) {
+	if h, ok := r.byObjectID[info.ObjectID]; ok {
 		return h, nil
 	}
-	h := domain.House{
-		ID:              r.nextID,
-		FIASGUID:        in.FIASGUID,
-		Address:         in.Address,
-		CadastralNumber: in.CadastralNumber,
-	}
-	r.byGUID[in.FIASGUID] = h
+	h := domain.House{ID: r.nextID, GARObjectID: info.ObjectID, ObjectGUID: info.ObjectGUID, Address: info.FullAddress}
+	r.byObjectID[info.ObjectID] = h
 	return h, nil
 }
 
-func TestResolveHouseCreatesIdentityFromAddressProvider(t *testing.T) {
-	cadastral := "16:50:000000:123"
-	repo := &houseRepository{byGUID: map[string]domain.House{}, nextID: "42"}
-	svc := HouseService{
-		Repo: repo,
-		Addresses: houseAddressProvider{info: &domain.AddressInfo{
-			FIASGUID:        "11111111-2222-3333-4444-555555555555",
-			Address:         "Респ Татарстан, г Казань, ул Чистопольская, д 20",
-			CadastralNumber: &cadastral,
-			ObjectType:      "house",
-		}},
-	}
-
-	house, err := svc.Resolve(context.Background(), "11111111-2222-3333-4444-555555555555")
+func TestResolveHouseCreatesIdentityFromGARObject(t *testing.T) {
+	repo := &fakeHouseRepository{byObjectID: map[string]domain.House{}, nextID: "42"}
+	svc := HouseService{Repo: repo, Addresses: fakeAddressProvider{items: map[int64]domain.AddressInfo{
+		10: {ObjectID: "10", ObjectGUID: "11111111-2222-3333-4444-555555555555", ObjectKind: "house", FullAddress: "г. Москва, ул. Тверская, д. 1", IsActive: true},
+	}}}
+	house, err := svc.Resolve(context.Background(), "10")
 	if err != nil {
 		t.Fatal(err)
 	}
-	if house.ID != "42" || house.FIASGUID != "11111111-2222-3333-4444-555555555555" || house.Address == "" {
+	if house.ID != "42" || house.GARObjectID != "10" || house.ObjectGUID == "" || house.Address == "" {
 		t.Fatalf("unexpected house: %+v", house)
-	}
-	if house.CadastralNumber == nil || *house.CadastralNumber != cadastral {
-		t.Fatalf("cadastral number was not persisted: %+v", house.CadastralNumber)
 	}
 }
 
 func TestResolveHouseReturnsExistingHouseWithoutProviderCall(t *testing.T) {
-	existing := domain.House{ID: "7", FIASGUID: "11111111-2222-3333-4444-555555555555", Address: "old address"}
-	svc := HouseService{
-		Repo:      &houseRepository{byGUID: map[string]domain.House{existing.FIASGUID: existing}},
-		Addresses: houseAddressProvider{err: errors.New("provider must not be called")},
-	}
-
-	house, err := svc.Resolve(context.Background(), existing.FIASGUID)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if house.ID != existing.ID {
-		t.Fatalf("expected existing house id %s, got %s", existing.ID, house.ID)
+	existing := domain.House{ID: "7", GARObjectID: "10", Address: "old address"}
+	svc := HouseService{Repo: &fakeHouseRepository{byObjectID: map[string]domain.House{"10": existing}}, Addresses: fakeAddressProvider{items: nil}}
+	house, err := svc.Resolve(context.Background(), "10")
+	if err != nil || house.ID != "7" {
+		t.Fatalf("house=%+v err=%v", house, err)
 	}
 }
 
-func TestResolveHouseRejectsNonHouseAddressObject(t *testing.T) {
-	svc := HouseService{
-		Repo: &houseRepository{byGUID: map[string]domain.House{}},
-		Addresses: houseAddressProvider{info: &domain.AddressInfo{
-			FIASGUID:   "11111111-2222-3333-4444-555555555555",
-			Address:    "Респ Татарстан, г Казань",
-			ObjectType: "city",
-		}},
-	}
-
-	_, err := svc.Resolve(context.Background(), "11111111-2222-3333-4444-555555555555")
-	if !errors.Is(err, domain.ErrInvalidHouse) {
-		t.Fatalf("expected invalid house, got %v", err)
+func TestResolveHouseRejectsInactiveAndNonHouseObjects(t *testing.T) {
+	for name, info := range map[string]domain.AddressInfo{
+		"wrong kind": {ObjectID: "10", ObjectKind: "apartment", IsActive: true},
+		"inactive":   {ObjectID: "10", ObjectKind: "house", IsActive: false},
+	} {
+		t.Run(name, func(t *testing.T) {
+			svc := HouseService{Repo: &fakeHouseRepository{byObjectID: map[string]domain.House{}}, Addresses: fakeAddressProvider{items: map[int64]domain.AddressInfo{10: info}}}
+			_, err := svc.Resolve(context.Background(), "10")
+			if !errors.Is(err, domain.ErrInvalidHouse) {
+				t.Fatalf("expected invalid house, got %v", err)
+			}
+		})
 	}
 }
 
-func TestResolveHouseValidatesGUID(t *testing.T) {
+func TestResolveHouseValidatesObjectID(t *testing.T) {
 	svc := HouseService{}
-	if _, err := svc.Resolve(context.Background(), "not-a-guid"); !errors.Is(err, domain.ErrInvalidFIASGUID) {
-		t.Fatalf("expected invalid guid, got %v", err)
+	for _, value := range []string{"", "not-a-number", "0", "-1"} {
+		if _, err := svc.Resolve(context.Background(), value); !errors.Is(err, domain.ErrInvalidAddressID) {
+			t.Fatalf("%q: expected invalid id, got %v", value, err)
+		}
 	}
 }

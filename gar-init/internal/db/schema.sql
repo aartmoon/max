@@ -148,3 +148,41 @@ CREATE TABLE IF NOT EXISTS gar_search_addresses (
     level integer,
     is_active boolean NOT NULL
 );
+
+-- Upgrade empty tables created by the retired backend ZIP importer. These
+-- ALTER statements are idempotent and preserve any existing data.
+ALTER TABLE gar_address_objects ADD COLUMN IF NOT EXISTS id bigint;
+ALTER TABLE gar_address_objects ADD COLUMN IF NOT EXISTS change_id bigint;
+ALTER TABLE gar_address_objects ADD COLUMN IF NOT EXISTS operation_type_id integer;
+ALTER TABLE gar_address_objects ADD COLUMN IF NOT EXISTS previous_id bigint;
+ALTER TABLE gar_address_objects ADD COLUMN IF NOT EXISTS next_id bigint;
+ALTER TABLE gar_address_objects ADD COLUMN IF NOT EXISTS update_date date;
+ALTER TABLE gar_address_objects ADD COLUMN IF NOT EXISTS start_date date;
+ALTER TABLE gar_address_objects ADD COLUMN IF NOT EXISTS end_date date;
+ALTER TABLE gar_address_objects ADD COLUMN IF NOT EXISTS raw_attributes jsonb NOT NULL DEFAULT '{}';
+
+ALTER TABLE gar_adm_hierarchy ADD COLUMN IF NOT EXISTS id bigint;
+ALTER TABLE gar_adm_hierarchy ADD COLUMN IF NOT EXISTS change_id bigint;
+ALTER TABLE gar_adm_hierarchy ADD COLUMN IF NOT EXISTS region_code text;
+ALTER TABLE gar_adm_hierarchy ADD COLUMN IF NOT EXISTS area_code text;
+ALTER TABLE gar_adm_hierarchy ADD COLUMN IF NOT EXISTS city_code text;
+ALTER TABLE gar_adm_hierarchy ADD COLUMN IF NOT EXISTS place_code text;
+ALTER TABLE gar_adm_hierarchy ADD COLUMN IF NOT EXISTS plan_code text;
+ALTER TABLE gar_adm_hierarchy ADD COLUMN IF NOT EXISTS street_code text;
+ALTER TABLE gar_adm_hierarchy ADD COLUMN IF NOT EXISTS path text;
+ALTER TABLE gar_adm_hierarchy ADD COLUMN IF NOT EXISTS update_date date;
+ALTER TABLE gar_adm_hierarchy ADD COLUMN IF NOT EXISTS start_date date;
+ALTER TABLE gar_adm_hierarchy ADD COLUMN IF NOT EXISTS end_date date;
+ALTER TABLE gar_adm_hierarchy ADD COLUMN IF NOT EXISTS raw_attributes jsonb NOT NULL DEFAULT '{}';
+
+ALTER TABLE gar_houses ADD COLUMN IF NOT EXISTS id bigint;
+ALTER TABLE gar_houses ADD COLUMN IF NOT EXISTS change_id bigint;
+ALTER TABLE gar_houses ADD COLUMN IF NOT EXISTS build_num text;
+ALTER TABLE gar_houses ADD COLUMN IF NOT EXISTS struc_num text;
+ALTER TABLE gar_houses ADD COLUMN IF NOT EXISTS operation_type_id integer;
+ALTER TABLE gar_houses ADD COLUMN IF NOT EXISTS update_date date;
+ALTER TABLE gar_houses ADD COLUMN IF NOT EXISTS start_date date;
+ALTER TABLE gar_houses ADD COLUMN IF NOT EXISTS end_date date;
+ALTER TABLE gar_houses ADD COLUMN IF NOT EXISTS raw_attributes jsonb NOT NULL DEFAULT '{}';
+ALTER TABLE gar_houses ALTER COLUMN add_num1 DROP NOT NULL;
+ALTER TABLE gar_houses ALTER COLUMN add_num2 DROP NOT NULL;

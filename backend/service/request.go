@@ -32,26 +32,27 @@ func (n NotificationService) Notify(ctx context.Context, r domain.Request) {
 
 type RequestService struct {
 	Repo          RequestRepository
+	Addresses     AddressProvider
+	Houses        HouseRepository
 	Classifier    Classifier
 	Router        Router
 	Notifications NotificationService
 	Housing       integration.HousingSystemGateway
 }
 type CreateInput struct {
-	Description string `json:"description"`
-	Address     string `json:"address"`
-	Kind        string `json:"kind"`
-	Photo       []byte `json:"-"`
+	Description       string `json:"description"`
+	HouseObjectID     string `json:"houseObjectId"`
+	ApartmentObjectID string `json:"apartmentObjectId"`
+	Kind              string `json:"kind"`
+	Photo             []byte `json:"-"`
 }
 
 func (s RequestService) Create(ctx context.Context, in CreateInput) (domain.Request, error) {
 	in.Description = strings.TrimSpace(in.Description)
-	in.Address = strings.TrimSpace(in.Address)
+	in.HouseObjectID = strings.TrimSpace(in.HouseObjectID)
+	in.ApartmentObjectID = strings.TrimSpace(in.ApartmentObjectID)
 	if n := utf8.RuneCountInString(in.Description); n < 5 || n > 5000 {
 		return domain.Request{}, domain.ValidationError{Message: "Описание должно содержать от 5 до 5000 символов"}
-	}
-	if n := utf8.RuneCountInString(in.Address); n < 5 || n > 300 {
-		return domain.Request{}, domain.ValidationError{Message: "Адрес должен содержать от 5 до 300 символов"}
 	}
 	if in.Kind == "" {
 		in.Kind = "APPLICATION"
@@ -66,10 +67,49 @@ func (s RequestService) Create(ctx context.Context, in CreateInput) (domain.Requ
 			return domain.Request{}, domain.ValidationError{Message: "Фото: JPEG, PNG или WebP, не более 5 МБ"}
 		}
 	}
+	houseObjectID, err := parseObjectID(in.HouseObjectID)
+	if err != nil {
+		return domain.Request{}, err
+	}
+	houseAddress, err := s.Addresses.GetAddress(ctx, houseObjectID)
+	if err != nil {
+		return domain.Request{}, err
+	}
+	if houseAddress.ObjectKind != "house" || !houseAddress.IsActive {
+		return domain.Request{}, domain.ErrInvalidHouse
+	}
+	house, err := s.Houses.ResolveHouse(ctx, houseAddress)
+	if err != nil {
+		return domain.Request{}, err
+	}
+	address := houseAddress.FullAddress
+	var apartment domain.AddressInfo
+	if in.ApartmentObjectID != "" {
+		apartmentObjectID, err := parseObjectID(in.ApartmentObjectID)
+		if err != nil {
+			return domain.Request{}, domain.ErrInvalidApartment
+		}
+		apartment, err = s.Addresses.GetAddress(ctx, apartmentObjectID)
+		if err != nil {
+			return domain.Request{}, err
+		}
+		if apartment.ObjectKind != "apartment" || !apartment.IsActive || apartment.ParentObjectID != houseAddress.ObjectID {
+			return domain.Request{}, domain.ErrInvalidApartment
+		}
+		address = apartment.FullAddress
+	}
 	category := s.Classifier.Classify(in.Description)
 	org := s.Router.Route(category)
 	now := time.Now().UTC()
-	r, err := s.Repo.Create(ctx, domain.Request{UserID: DemoUserID, Address: in.Address, Description: in.Description, Kind: in.Kind, ProblemType: category, ResponsibleOrganizationID: org.ID, ResponsibleOrganization: org.Name, Status: "CREATED", Deadline: now.AddDate(0, 0, 3), CreatedAt: now, Photo: in.Photo, PhotoType: photoType, HasPhoto: len(in.Photo) > 0, Text: fmt.Sprintf("В %s\nАдрес: %s\n\n%s\n\nПрошу рассмотреть обращение и сообщить о результате.", org.Name, in.Address, in.Description)})
+	r, err := s.Repo.Create(ctx, domain.Request{
+		UserID: DemoUserID, HouseID: house.ID, Address: address, Description: in.Description, Kind: in.Kind,
+		ProblemType: category, ResponsibleOrganizationID: org.ID, ResponsibleOrganization: org.Name,
+		Status: "CREATED", Deadline: now.AddDate(0, 0, 3), CreatedAt: now,
+		Photo: in.Photo, PhotoType: photoType, HasPhoto: len(in.Photo) > 0,
+		HouseObjectID: houseAddress.ObjectID, HouseObjectGUID: houseAddress.ObjectGUID,
+		ApartmentObjectID: apartment.ObjectID, ApartmentObjectGUID: apartment.ObjectGUID,
+		Text: fmt.Sprintf("В %s\nАдрес: %s\n\n%s\n\nПрошу рассмотреть обращение и сообщить о результате.", org.Name, address, in.Description),
+	})
 	if err == nil {
 		s.Notifications.Notify(ctx, r)
 	}

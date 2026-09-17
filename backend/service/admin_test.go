@@ -11,8 +11,9 @@ import (
 func TestNewRequestKinds(t *testing.T) {
 	for _, kind := range []string{"EMERGENCY", "COMPLAINT"} {
 		repo := &captureRepository{}
-		svc := RequestService{Repo: repo, Classifier: RuleClassifier{}, Router: RuleRouter{}, Notifications: NotificationService{Client: integration.MockMaxClient{}}}
-		r, err := svc.Create(context.Background(), CreateInput{Description: "Тестовая заявка", Address: "Тестовый дом 1", Kind: kind})
+		addresses := fakeAddressProvider{items: map[int64]domain.AddressInfo{10: {ObjectID: "10", ObjectKind: "house", FullAddress: "Тестовый дом 1", IsActive: true}}}
+		svc := requestServiceForTest(repo, addresses)
+		r, err := svc.Create(context.Background(), CreateInput{Description: "Тестовая заявка", HouseObjectID: "10", Kind: kind})
 		if err != nil || r.Kind != kind {
 			t.Fatalf("%s: %+v %v", kind, r, err)
 		}
