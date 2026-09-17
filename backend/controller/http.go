@@ -15,6 +15,8 @@ import (
 
 type Handler struct {
 	Service           service.RequestService
+	Houses            service.HouseService
+	Addresses         service.AddressProvider
 	Repo              repository.Postgres
 	MockStatusEnabled bool
 }
@@ -30,6 +32,20 @@ func (h Handler) Routes() http.Handler {
 		writeJSON(w, 200, map[string]string{"status": "ok"})
 	})
 	mux.HandleFunc("POST /api/requests", h.create)
+	mux.HandleFunc("GET /api/addresses/search", h.searchAddresses)
+	mux.HandleFunc("GET /api/addresses/{fiasGuid}", func(w http.ResponseWriter, r *http.Request) {
+		v, e := h.Addresses.GetByGUID(r.Context(), r.PathValue("fiasGuid"))
+		respond(w, v, e)
+	})
+	mux.HandleFunc("POST /api/houses/resolve", h.resolveHouse)
+	mux.HandleFunc("GET /api/houses/{id}", h.withID(func(w http.ResponseWriter, r *http.Request) {
+		v, e := h.Repo.GetHouse(r.Context(), r.PathValue("id"))
+		if e != nil {
+			respond(w, nil, e)
+			return
+		}
+		writeJSON(w, 200, houseIdentityResponse(v))
+	}))
 	mux.HandleFunc("GET /api/requests", func(w http.ResponseWriter, r *http.Request) { v, e := h.Service.List(r.Context()); respond(w, v, e) })
 	mux.HandleFunc("GET /api/requests/{id}", h.withID(func(w http.ResponseWriter, r *http.Request) {
 		v, e := h.Service.Get(r.Context(), r.PathValue("id"))
@@ -61,6 +77,57 @@ func (h Handler) Routes() http.Handler {
 	}
 	return mux
 }
+
+func (h Handler) searchAddresses(w http.ResponseWriter, r *http.Request) {
+	limit := 10
+	if raw := r.URL.Query().Get("limit"); raw != "" {
+		parsed, err := strconv.Atoi(raw)
+		if err != nil || parsed <= 0 || parsed > 50 {
+			writeJSON(w, 400, map[string]any{"error": map[string]string{"code": "invalid_request", "message": "Некорректный limit"}})
+			return
+		}
+		limit = parsed
+	}
+	items, err := h.Addresses.Search(r.Context(), r.URL.Query().Get("q"), limit)
+	if err != nil {
+		respond(w, nil, err)
+		return
+	}
+	writeJSON(w, 200, map[string]any{"items": items})
+}
+
+func (h Handler) resolveHouse(w http.ResponseWriter, r *http.Request) {
+	r.Body = http.MaxBytesReader(w, r.Body, 16384)
+	var in struct {
+		FIASGUID string `json:"fiasGuid"`
+	}
+	decoder := json.NewDecoder(r.Body)
+	decoder.DisallowUnknownFields()
+	if err := decoder.Decode(&in); err != nil {
+		badBody(w, err)
+		return
+	}
+	if err := decoder.Decode(&struct{}{}); err != io.EOF {
+		badBody(w, err)
+		return
+	}
+	v, e := h.Houses.Resolve(r.Context(), in.FIASGUID)
+	if e != nil {
+		respond(w, nil, e)
+		return
+	}
+	writeJSON(w, 200, houseIdentityResponse(v))
+}
+
+func houseIdentityResponse(h domain.House) map[string]any {
+	return map[string]any{
+		"id":              h.ID,
+		"fiasGuid":        h.FIASGUID,
+		"address":         h.Address,
+		"cadastralNumber": h.CadastralNumber,
+	}
+}
+
 func (h Handler) withID(fn http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		id, e := strconv.ParseInt(r.PathValue("id"), 10, 64)
@@ -143,6 +210,12 @@ func respond(w http.ResponseWriter, v any, err error) {
 		message = err.Error()
 	case errors.Is(err, domain.ErrConflict):
 		code = 409
+		message = err.Error()
+	case errors.Is(err, domain.ErrInvalidFIASGUID):
+		code = 400
+		message = err.Error()
+	case errors.Is(err, domain.ErrInvalidHouse):
+		code = 400
 		message = err.Error()
 	default:
 		slog.Error("request failed", "error", err)

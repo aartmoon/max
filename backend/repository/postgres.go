@@ -17,6 +17,9 @@ type Postgres struct{ Pool *pgxpool.Pool }
 //go:embed migrations/002_admin_house.sql
 var adminHouseMigration string
 
+//go:embed migrations/003_gar_house_identity.sql
+var garHouseIdentityMigration string
+
 func (p Postgres) Migrate(ctx context.Context) error {
 	tx, err := p.Pool.Begin(ctx)
 	if err != nil {
@@ -41,6 +44,17 @@ func (p Postgres) Migrate(ctx context.Context) error {
 			return err
 		}
 		if _, err = tx.Exec(ctx, `INSERT INTO schema_migrations VALUES(2)`); err != nil {
+			return err
+		}
+	}
+	if err = tx.QueryRow(ctx, `SELECT EXISTS(SELECT 1 FROM schema_migrations WHERE version=3)`).Scan(&exists); err != nil {
+		return err
+	}
+	if !exists {
+		if _, err = tx.Exec(ctx, garHouseIdentityMigration); err != nil {
+			return err
+		}
+		if _, err = tx.Exec(ctx, `INSERT INTO schema_migrations VALUES(3)`); err != nil {
 			return err
 		}
 	}
