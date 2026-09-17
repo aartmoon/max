@@ -46,7 +46,13 @@ export const api = {
 };
 
 export const houseApi = {
-  get: (signal?: AbortSignal) => call<House>("/house", { signal }),
+  resolve: (objectId: string, signal?: AbortSignal) =>
+    call<House>("/houses/resolve", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ objectId }),
+      signal,
+    }),
 };
 export const addressApi = {
   search: ({

@@ -73,16 +73,22 @@ export const date = (s: string) =>
 
 export interface House {
   id: string;
+  garObjectId: string;
+  objectGuid?: string;
   address: string;
-  totalArea: number;
-  livingArea: number;
-  floors: number;
-  entrances: number;
-  apartments: number;
-  yearBuilt: number;
-  organization: string;
-  manager: string;
-  contact: string;
+  cadastralNumber: string | null;
+  totalArea: number | null;
+  livingArea: number | null;
+  floors: number | null;
+  entrances: number | null;
+  apartments: number | null;
+  yearBuilt: number | null;
+  organization: string | null;
+  manager: string | null;
+  contact: string | null;
+  dataSource: string;
+  dataUpdatedAt: string;
+  stale: boolean;
 }
 export interface Organization {
   id: string;

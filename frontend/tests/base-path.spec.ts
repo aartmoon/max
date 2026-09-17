@@ -9,11 +9,13 @@ test.beforeEach(async ({ page }) => {
 test("application and client-side navigation stay under /max", async ({
   page,
 }) => {
-  await page.route("**/max/api/house", (route) =>
+  await page.addInitScript(() => localStorage.setItem("tvoy-dom:selected-house-object-id", "10"));
+  await page.route("**/max/api/houses/resolve", (route) =>
     route.fulfill({
       contentType: "application/json",
       body: JSON.stringify({
         id: "1",
+        garObjectId: "10",
         address: "ул. Тестовая, д. 1",
         totalArea: 12480,
         livingArea: 9360,
@@ -24,6 +26,10 @@ test("application and client-side navigation stay under /max", async ({
         organization: "УК «Тестовая»",
         manager: "Иван Иванов",
         contact: "+7 000 000-00-00",
+        cadastralNumber: null,
+        dataSource: "ГИС ЖКХ",
+        dataUpdatedAt: "2026-09-18T12:00:00Z",
+        stale: false,
       }),
     }),
   );
