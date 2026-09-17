@@ -1,8 +1,4 @@
-<<<<<<< HEAD
 CREATE INDEX IF NOT EXISTS gar_address_objects_object_id_idx ON gar_address_objects(object_id);
-=======
-CREATE UNIQUE INDEX IF NOT EXISTS gar_address_objects_object_id_uq ON gar_address_objects(object_id);
->>>>>>> codex/gar-init
 CREATE INDEX IF NOT EXISTS gar_address_objects_guid_idx ON gar_address_objects(object_guid);
 CREATE INDEX IF NOT EXISTS gar_address_objects_name_idx ON gar_address_objects(lower(name));
 CREATE INDEX IF NOT EXISTS gar_addr_object_params_object_idx ON gar_addr_object_params(object_id, type_id);
@@ -10,7 +6,6 @@ CREATE INDEX IF NOT EXISTS gar_adm_hierarchy_object_idx ON gar_adm_hierarchy(obj
 CREATE INDEX IF NOT EXISTS gar_adm_hierarchy_parent_idx ON gar_adm_hierarchy(parent_object_id, object_id);
 CREATE INDEX IF NOT EXISTS gar_mun_hierarchy_object_idx ON gar_mun_hierarchy(object_id);
 CREATE INDEX IF NOT EXISTS gar_mun_hierarchy_parent_idx ON gar_mun_hierarchy(parent_object_id, object_id);
-<<<<<<< HEAD
 CREATE INDEX IF NOT EXISTS gar_houses_object_id_idx ON gar_houses(object_id);
 CREATE INDEX IF NOT EXISTS gar_houses_guid_idx ON gar_houses(object_guid);
 CREATE INDEX IF NOT EXISTS gar_houses_number_idx ON gar_houses(house_num);
@@ -24,21 +19,6 @@ CREATE INDEX IF NOT EXISTS gar_carplace_params_object_idx ON gar_carplace_params
 CREATE INDEX IF NOT EXISTS gar_rooms_object_id_idx ON gar_rooms(object_id);
 CREATE INDEX IF NOT EXISTS gar_room_params_object_idx ON gar_room_params(object_id, type_id);
 CREATE INDEX IF NOT EXISTS gar_steads_object_id_idx ON gar_steads(object_id);
-=======
-CREATE UNIQUE INDEX IF NOT EXISTS gar_houses_object_id_uq ON gar_houses(object_id);
-CREATE INDEX IF NOT EXISTS gar_houses_guid_idx ON gar_houses(object_guid);
-CREATE INDEX IF NOT EXISTS gar_houses_number_idx ON gar_houses(house_num);
-CREATE INDEX IF NOT EXISTS gar_house_params_object_idx ON gar_house_params(object_id, type_id);
-CREATE UNIQUE INDEX IF NOT EXISTS gar_apartments_object_id_uq ON gar_apartments(object_id);
-CREATE INDEX IF NOT EXISTS gar_apartments_guid_idx ON gar_apartments(object_guid);
-CREATE INDEX IF NOT EXISTS gar_apartments_number_idx ON gar_apartments(number);
-CREATE INDEX IF NOT EXISTS gar_apartment_params_object_idx ON gar_apartment_params(object_id, type_id);
-CREATE UNIQUE INDEX IF NOT EXISTS gar_carplaces_object_id_uq ON gar_carplaces(object_id);
-CREATE INDEX IF NOT EXISTS gar_carplace_params_object_idx ON gar_carplace_params(object_id, type_id);
-CREATE UNIQUE INDEX IF NOT EXISTS gar_rooms_object_id_uq ON gar_rooms(object_id);
-CREATE INDEX IF NOT EXISTS gar_room_params_object_idx ON gar_room_params(object_id, type_id);
-CREATE UNIQUE INDEX IF NOT EXISTS gar_steads_object_id_uq ON gar_steads(object_id);
->>>>>>> codex/gar-init
 CREATE INDEX IF NOT EXISTS gar_stead_params_object_idx ON gar_stead_params(object_id, type_id);
 CREATE INDEX IF NOT EXISTS gar_change_history_object_idx ON gar_change_history(object_id, change_id);
 CREATE INDEX IF NOT EXISTS gar_reestr_objects_object_idx ON gar_reestr_objects(object_id);

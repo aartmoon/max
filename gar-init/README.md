@@ -55,11 +55,7 @@ GAR_XML_PATH=/home/user1/gar/xml
 
 ```bash
 find /home/user1/gar/xml -maxdepth 1 -type f -name '*.XML' | sort
-<<<<<<< HEAD
 docker compose -f docker-compose.prod.yml pull gar-init
-=======
-docker compose -f docker-compose.prod.yml build gar-init
->>>>>>> codex/gar-init
 docker compose -f docker-compose.prod.yml up gar-init
 ```
 

@@ -104,7 +104,6 @@ func TestSeedDemoAndFinalizeBuildSearchEntries(t *testing.T) {
 	}
 }
 
-<<<<<<< HEAD
 func TestExecuteStatementsCommitsCompletedIndexBeforeLaterFailure(t *testing.T) {
 	store := testStore(t)
 	ctx := context.Background()
@@ -190,8 +189,6 @@ func TestEnsureSchemaMakesLegacyHouseNumberNullable(t *testing.T) {
 	}
 }
 
-=======
->>>>>>> codex/gar-init
 func testStore(t *testing.T) *Store {
 	t.Helper()
 	url := os.Getenv("GAR_TEST_DATABASE_URL")

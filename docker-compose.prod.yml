@@ -24,13 +24,8 @@ services:
 
 
   gar-init:
-<<<<<<< HEAD
     image: artshar/max-gar-init:latest
     pull_policy: always
-=======
-    build:
-      context: ./gar-init
->>>>>>> codex/gar-init
     restart: "no"
 
     environment:
