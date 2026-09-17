@@ -24,6 +24,7 @@ services:
 
 
   gar-init:
+    profiles: ["init"]
     image: artshar/max-gar-init:latest
     pull_policy: always
     restart: "no"
@@ -72,8 +73,6 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
-      gar-init:
-        condition: service_completed_successfully
 
     networks:
       - backend

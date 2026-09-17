@@ -68,11 +68,15 @@ docker compose -f docker-compose.prod.yml logs -f gar-init
 После успешного импорта запустить приложение:
 
 ```bash
-docker compose -f docker-compose.prod.yml up -d
+docker compose -f docker-compose.prod.yml up -d postgres backend frontend
 ```
 
-Backend имеет зависимость `service_completed_successfully`, поэтому не стартует
-до успешного завершения `gar-init`.
+В production `gar-init` подключён к профилю `init` и не запускается обычным
+deploy. Его нужно выполнить вручную только при первичной загрузке GAR:
+
+```bash
+docker compose -f docker-compose.prod.yml --profile init up gar-init
+```
 
 ## Проверка результата
 

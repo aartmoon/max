@@ -253,12 +253,20 @@ MAX отдельно указывает на необходимость дове
 
 ### Адреса ГАР/ФИАС
 
-Перед backend запускается одноразовый сервис `gar-init`. На production он
-потоково импортирует XML из `${GAR_XML_PATH:-/home/user1/gar/xml}`. Локально
+Одноразовый сервис `gar-init` используется только для первичной загрузки GAR.
+На production он потоково импортирует XML из `${GAR_XML_PATH:-/home/user1/gar/xml}`.
+После успешной загрузки обычный deploy его не запускает. Локально
 можно оставить каталог `gar-data/` пустым: Compose явно разрешает небольшой
 набор связанных тестовых адресов, домов и квартир.
 
 ```bash
+# Первый запуск production:
+docker compose -f docker-compose.prod.yml --profile init up gar-init
+
+# Обычный production deploy:
+./deploy.sh
+
+# Локальная разработка:
 docker compose up --build gar-init
 docker compose up --build -d
 docker compose logs -f gar-init
