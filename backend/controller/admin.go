@@ -9,7 +9,6 @@ import (
 
 // Explicitly a demo console, with no authentication or organization isolation yet.
 func (h Handler) adminRoutes(mux *http.ServeMux) {
-	mux.HandleFunc("GET /api/house", func(w http.ResponseWriter, r *http.Request) { v, e := h.Repo.MyHouse(r.Context()); respond(w, v, e) })
 	mux.HandleFunc("GET /api/organizations", func(w http.ResponseWriter, r *http.Request) {
 		v, e := h.Repo.Organizations(r.Context())
 		respond(w, v, e)

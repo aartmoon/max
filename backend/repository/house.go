@@ -23,8 +23,3 @@ func (p Postgres) Organizations(ctx context.Context) ([]domain.Organization, err
 	}
 	return result, rows.Err()
 }
-func (p Postgres) MyHouse(ctx context.Context) (domain.House, error) {
-	var h domain.House
-	err := p.Pool.QueryRow(ctx, `SELECT h.id::text,h.address,h.total_area,h.living_area,h.floors,h.entrances,h.apartments,h.year_built,COALESCE(o.name,''),h.manager,h.contact FROM houses h LEFT JOIN organizations o ON o.id=h.organization_id WHERE h.address=$1`, "г. Москва, ул. Тестовая, д. 1").Scan(&h.ID, &h.Address, &h.TotalArea, &h.LivingArea, &h.Floors, &h.Entrances, &h.Apartments, &h.YearBuilt, &h.Organization, &h.Manager, &h.Contact)
-	return h, err
-}

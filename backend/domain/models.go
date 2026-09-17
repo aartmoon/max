@@ -1,6 +1,7 @@
 package domain
 
 import (
+	"encoding/json"
 	"errors"
 	"time"
 )
@@ -10,6 +11,8 @@ var ErrConflict = errors.New("переход статуса недоступен
 var ErrInvalidAddressID = errors.New("некорректный идентификатор адреса ГАР")
 var ErrInvalidHouse = errors.New("выбранный объект не является домом")
 var ErrInvalidApartment = errors.New("выбранная квартира не относится к указанному дому")
+var ErrHouseProfileNotFound = errors.New("сведения о доме не найдены в ГИС ЖКХ")
+var ErrHouseProfileUnavailable = errors.New("ГИС ЖКХ временно недоступна")
 
 type ValidationError struct{ Message string }
 
@@ -27,15 +30,37 @@ type House struct {
 	CadastralNumber *string    `json:"cadastralNumber"`
 	CreatedAt       *time.Time `json:"createdAt,omitempty"`
 	UpdatedAt       *time.Time `json:"updatedAt,omitempty"`
-	TotalArea       float64    `json:"totalArea"`
-	LivingArea      float64    `json:"livingArea"`
-	Floors          int        `json:"floors"`
-	Entrances       int        `json:"entrances"`
-	Apartments      int        `json:"apartments"`
-	YearBuilt       int        `json:"yearBuilt"`
-	Organization    string     `json:"organization"`
-	Manager         string     `json:"manager"`
-	Contact         string     `json:"contact"`
+	TotalArea       *float64   `json:"totalArea"`
+	LivingArea      *float64   `json:"livingArea"`
+	Floors          *int       `json:"floors"`
+	Entrances       *int       `json:"entrances"`
+	Apartments      *int       `json:"apartments"`
+	YearBuilt       *int       `json:"yearBuilt"`
+	Organization    *string    `json:"organization"`
+	Manager         *string    `json:"manager"`
+	Contact         *string    `json:"contact"`
+	DataSource      string     `json:"dataSource,omitempty"`
+	DataUpdatedAt   *time.Time `json:"dataUpdatedAt,omitempty"`
+	Stale           bool       `json:"stale"`
+}
+
+type HouseProfile struct {
+	HouseID         string          `json:"houseId,omitempty"`
+	GISHouseGUID    string          `json:"gisHouseGuid"`
+	GISHouseType    string          `json:"gisHouseType"`
+	CadastralNumber *string         `json:"cadastralNumber"`
+	TotalArea       *float64        `json:"totalArea"`
+	LivingArea      *float64        `json:"livingArea"`
+	Floors          *int            `json:"floors"`
+	Entrances       *int            `json:"entrances"`
+	Apartments      *int            `json:"apartments"`
+	YearBuilt       *int            `json:"yearBuilt"`
+	Organization    *string         `json:"organization"`
+	Manager         *string         `json:"manager"`
+	Contact         *string         `json:"contact"`
+	RawPayload      json.RawMessage `json:"-"`
+	FetchedAt       time.Time       `json:"fetchedAt"`
+	Stale           bool            `json:"stale"`
 }
 type AddressSearch struct {
 	Query          string

@@ -13,13 +13,18 @@ import (
 	"tvoydom/config"
 	"tvoydom/controller"
 	"tvoydom/integration"
+	"tvoydom/integration/gishousing"
 	"tvoydom/integration/maxbot"
 	"tvoydom/repository"
 	"tvoydom/service"
 )
 
 func main() {
-	c := config.Load()
+	c, err := config.Load()
+	if err != nil {
+		slog.Error("configuration", "error", err)
+		os.Exit(1)
+	}
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 	pool, err := pgxpool.New(ctx, c.DatabaseURL)
@@ -38,7 +43,8 @@ func main() {
 		os.Exit(1)
 	}
 	svc := service.RequestService{Repo: repo, Addresses: repo, Houses: repo, Classifier: service.RuleClassifier{}, Router: service.RuleRouter{}, Notifications: service.NotificationService{Client: integration.MockMaxClient{}}, Housing: integration.MockHousingSystemGateway{}}
-	houseSvc := service.HouseService{Repo: repo, Addresses: repo}
+	registry := gishousing.NewClient(c.GISHousingBaseURL, c.GISHousingTimeout, &http.Client{})
+	houseSvc := service.HouseService{Repo: repo, Addresses: repo, Profiles: repo, Registry: registry, ProfileTTL: c.GISHouseCacheTTL}
 	server := &http.Server{Addr: ":" + c.Port, Handler: (controller.Handler{Service: svc, Houses: houseSvc, Addresses: repo, Repo: repo, MockStatusEnabled: c.MockStatusEnabled}).Routes(), ReadHeaderTimeout: 5 * time.Second, ReadTimeout: 20 * time.Second, WriteTimeout: 30 * time.Second, IdleTimeout: 60 * time.Second}
 	stop, done := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer done()

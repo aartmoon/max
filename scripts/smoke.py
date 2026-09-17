@@ -47,7 +47,5 @@ for kind in ['EMERGENCY','COMPLAINT']:
     assert history[-1]['comment']=='Комментарий УК: RESOLVED' and history[-1]['actor']=='УК · демо'
     call(path+'/status',{'status':'ACCEPTED'},409,'PATCH')
 assert len(call('/admin/requests'))>=len(call('/requests'))
-house=call('/house')
-assert house['totalArea']==12480 and house['livingArea']==9360 and house['organization']=='УК «Тестовая»'
 assert len(call('/organizations'))==2
-print('PASS: new kinds, admin transitions, rejection validation, resident-visible comments, house data')
+print('PASS: new kinds, admin transitions, rejection validation, resident-visible comments')

@@ -276,6 +276,9 @@ p {
   padding-top: 22px;
   margin-top: 28px;
 }
+.house-picker { overflow: visible; }
+.house-warning { color: #765c19; background: #fff4cf; border-radius: 10px; padding: 14px; font-size: 13px; }
+.house-actions { display: flex; gap: 10px; flex-wrap: wrap; }
 .bottom-nav {
   position: fixed;
   bottom: 0;

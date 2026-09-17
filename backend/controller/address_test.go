@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 
 	"tvoydom/domain"
 	"tvoydom/service"
@@ -15,6 +16,7 @@ import (
 type addressProviderStub struct {
 	search domain.AddressSearch
 	items  map[int64]domain.AddressInfo
+	err    error
 }
 
 func (s *addressProviderStub) Search(_ context.Context, in domain.AddressSearch) ([]domain.AddressSuggestion, error) {
@@ -23,6 +25,9 @@ func (s *addressProviderStub) Search(_ context.Context, in domain.AddressSearch)
 }
 
 func (s *addressProviderStub) GetAddress(_ context.Context, id int64) (domain.AddressInfo, error) {
+	if s.err != nil {
+		return domain.AddressInfo{}, s.err
+	}
 	item, ok := s.items[id]
 	if !ok {
 		return domain.AddressInfo{}, domain.ErrNotFound
@@ -85,8 +90,10 @@ func TestAddressDetailUsesNumericGARObjectID(t *testing.T) {
 }
 
 func TestResolveHouseAcceptsObjectID(t *testing.T) {
+	now := time.Date(2026, 9, 18, 12, 0, 0, 0, time.UTC)
+	floors := 16
 	provider := &addressProviderStub{items: map[int64]domain.AddressInfo{10: {ObjectID: "10", ObjectKind: "house", FullAddress: "г. Москва, д. 1", IsActive: true}}}
-	houses := &houseRepoStub{house: domain.House{ID: "42", GARObjectID: "10", ObjectGUID: "10000000-0000-0000-0000-000000000010", Address: "г. Москва, д. 1"}}
+	houses := &houseRepoStub{house: domain.House{ID: "42", GARObjectID: "10", ObjectGUID: "10000000-0000-0000-0000-000000000010", Address: "г. Москва, д. 1", Floors: &floors, DataSource: "ГИС ЖКХ", DataUpdatedAt: &now, Stale: true}}
 	h := Handler{Addresses: provider, Houses: service.HouseService{Addresses: provider, Repo: houses}}.Routes()
 	res := httptest.NewRecorder()
 	h.ServeHTTP(res, httptest.NewRequest(http.MethodPost, "/api/houses/resolve", bytes.NewBufferString(`{"objectId":"10"}`)))
@@ -99,5 +106,28 @@ func TestResolveHouseAcceptsObjectID(t *testing.T) {
 	}
 	if body["garObjectId"] != "10" || body["objectGuid"] == "" {
 		t.Fatalf("unexpected body: %v", body)
+	}
+	if body["floors"] != float64(16) || body["dataSource"] != "ГИС ЖКХ" || body["dataUpdatedAt"] == nil || body["stale"] != true {
+		t.Fatalf("profile fields missing: %v", body)
+	}
+}
+
+func TestResolveHouseMapsProfileErrors(t *testing.T) {
+	for want, code := range map[error]int{domain.ErrHouseProfileNotFound: http.StatusNotFound, domain.ErrHouseProfileUnavailable: http.StatusServiceUnavailable} {
+		provider := &addressProviderStub{err: want}
+		h := Handler{Addresses: provider, Houses: service.HouseService{Addresses: provider, Repo: &houseRepoStub{}}}.Routes()
+		res := httptest.NewRecorder()
+		h.ServeHTTP(res, httptest.NewRequest(http.MethodPost, "/api/houses/resolve", bytes.NewBufferString(`{"objectId":"10"}`)))
+		if res.Code != code {
+			t.Fatalf("error=%v status=%d body=%s", want, res.Code, res.Body.String())
+		}
+	}
+}
+
+func TestLegacyHouseRouteIsRemoved(t *testing.T) {
+	res := httptest.NewRecorder()
+	Handler{}.Routes().ServeHTTP(res, httptest.NewRequest(http.MethodGet, "/api/house", nil))
+	if res.Code != http.StatusNotFound {
+		t.Fatalf("status=%d body=%s", res.Code, res.Body.String())
 	}
 }

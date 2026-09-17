@@ -51,7 +51,7 @@ func (h Handler) Routes() http.Handler {
 			respond(w, nil, e)
 			return
 		}
-		writeJSON(w, 200, houseIdentityResponse(v))
+		writeJSON(w, 200, houseResponse(v))
 	}))
 	mux.HandleFunc("GET /api/requests", func(w http.ResponseWriter, r *http.Request) { v, e := h.Service.List(r.Context()); respond(w, v, e) })
 	mux.HandleFunc("GET /api/requests/{id}", h.withID(func(w http.ResponseWriter, r *http.Request) {
@@ -146,16 +146,28 @@ func (h Handler) resolveHouse(w http.ResponseWriter, r *http.Request) {
 		respond(w, nil, e)
 		return
 	}
-	writeJSON(w, 200, houseIdentityResponse(v))
+	writeJSON(w, 200, houseResponse(v))
 }
 
-func houseIdentityResponse(h domain.House) map[string]any {
+func houseResponse(h domain.House) map[string]any {
 	return map[string]any{
 		"id":              h.ID,
 		"garObjectId":     h.GARObjectID,
 		"objectGuid":      h.ObjectGUID,
 		"address":         h.Address,
 		"cadastralNumber": h.CadastralNumber,
+		"totalArea":       h.TotalArea,
+		"livingArea":      h.LivingArea,
+		"floors":          h.Floors,
+		"entrances":       h.Entrances,
+		"apartments":      h.Apartments,
+		"yearBuilt":       h.YearBuilt,
+		"organization":    h.Organization,
+		"manager":         h.Manager,
+		"contact":         h.Contact,
+		"dataSource":      h.DataSource,
+		"dataUpdatedAt":   h.DataUpdatedAt,
+		"stale":           h.Stale,
 	}
 }
 
@@ -239,6 +251,12 @@ func respond(w http.ResponseWriter, v any, err error) {
 		message = err.Error()
 	case errors.Is(err, domain.ErrNotFound):
 		code = 404
+		message = err.Error()
+	case errors.Is(err, domain.ErrHouseProfileNotFound):
+		code = 404
+		message = err.Error()
+	case errors.Is(err, domain.ErrHouseProfileUnavailable):
+		code = 503
 		message = err.Error()
 	case errors.Is(err, domain.ErrConflict):
 		code = 409
