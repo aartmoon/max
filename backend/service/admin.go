@@ -30,8 +30,12 @@ func (s AdminService) SetStatus(ctx context.Context, id, status, comment string)
 	if utf8.RuneCountInString(comment) > 2000 {
 		return domain.Request{}, domain.ValidationError{Message: "Комментарий не должен превышать 2000 символов"}
 	}
-	if status == "REJECTED" && comment == "" {
-		return domain.Request{}, domain.ValidationError{Message: "Укажите причину отклонения заявки"}
+	if (status == "REJECTED" || status == "RESOLVED") && comment == "" {
+		message := "Укажите причину отклонения заявки"
+		if status == "RESOLVED" {
+			message = "Опишите результат выполненных работ"
+		}
+		return domain.Request{}, domain.ValidationError{Message: message}
 	}
 	r, err := s.Repo.AdminTransition(ctx, id, comment, func(from string) (string, error) {
 		if err := ValidateAdminTransition(from, status); err != nil {

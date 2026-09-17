@@ -56,20 +56,22 @@ function App() {
           />
         </Routes>
       </main>
-      <nav className="bottom-nav">
-        <NavLink to="/" end>
-          <span>⌂</span>Главная
-        </NavLink>
-        <NavLink to="/requests/new">
-          <span>＋</span>Создать
-        </NavLink>
-        <NavLink to="/requests" end>
-          <span>▤</span>Заявки
-        </NavLink>
-        <NavLink to="/house">
-          <span>⌂</span>Мой дом
-        </NavLink>
-      </nav>
+      {!location.pathname.startsWith("/admin") && (
+        <nav className="bottom-nav">
+          <NavLink to="/" end>
+            <span>⌂</span>Главная
+          </NavLink>
+          <NavLink to="/requests/new">
+            <span>＋</span>Создать
+          </NavLink>
+          <NavLink to="/requests" end>
+            <span>▤</span>Заявки
+          </NavLink>
+          <NavLink to="/house">
+            <span>⌂</span>Мой дом
+          </NavLink>
+        </nav>
+      )}
     </>
   );
 }

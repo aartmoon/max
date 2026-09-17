@@ -37,7 +37,7 @@ for kind in ['EMERGENCY','COMPLAINT']:
     r=call('/requests',{'description':'Проверка кабинета УК','address':'г. Москва, ул. Тестовая, д. 1','kind':kind},201)
     path='/admin/requests/'+r['id']
     assert call(path)['kind']==kind
-    call(path+'/status',{'status':'RESOLVED','comment':''},409,'PATCH')
+    call(path+'/status',{'status':'RESOLVED','comment':''},400,'PATCH')
     call(path+'/status',{'status':'REJECTED','comment':'  '},400,'PATCH')
     for target in ['ACCEPTED','IN_PROGRESS','RESOLVED']:
         updated=call(path+'/status',{'status':target,'comment':'Комментарий УК: '+target},method='PATCH')

@@ -33,12 +33,19 @@ func TestAdminTransitions(t *testing.T) {
 
 type adminCapture struct {
 	AdminRepository
-	calls int
+	calls       int
+	from        string
+	lastComment string
 }
 
 func (r *adminCapture) AdminTransition(_ context.Context, id, comment string, next func(string) (string, error)) (domain.Request, error) {
 	r.calls++
-	status, err := next("CREATED")
+	r.lastComment = comment
+	from := r.from
+	if from == "" {
+		from = "CREATED"
+	}
+	status, err := next(from)
 	return domain.Request{ID: id, Status: status, UserID: "1"}, err
 }
 func TestAdminCommentValidation(t *testing.T) {
@@ -50,10 +57,18 @@ func TestAdminCommentValidation(t *testing.T) {
 	if _, err := svc.SetStatus(context.Background(), "1", "ACCEPTED", strings.Repeat("я", 2001)); err == nil {
 		t.Fatal("long comment accepted")
 	}
+	repo.from = "IN_PROGRESS"
+	if _, err := svc.SetStatus(context.Background(), "1", "RESOLVED", "  "); err == nil {
+		t.Fatal("empty resolution result accepted")
+	}
 	if repo.calls != 0 {
 		t.Fatal("invalid update reached repository")
 	}
+	repo.from = "CREATED"
 	if r, err := svc.SetStatus(context.Background(), "1", "REJECTED", "Повторная заявка"); err != nil || r.Status != "REJECTED" {
 		t.Fatalf("%+v %v", r, err)
+	}
+	if repo.lastComment != "Повторная заявка" {
+		t.Fatalf("comment was not normalized: %q", repo.lastComment)
 	}
 }

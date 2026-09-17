@@ -50,6 +50,7 @@ test("desktop uses a wide workspace and multi-column content", async ({
     }),
   );
   await page.goto("/max/requests");
+  await expect(page.locator(".request-card")).toHaveCount(2);
   const cards = await page.locator(".request-card").evaluateAll((items) =>
     items.map((item) => {
       const box = item.getBoundingClientRect();
