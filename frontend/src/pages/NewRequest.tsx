@@ -4,7 +4,8 @@ import { useMaxBridge } from "../integration/MaxIntegration";
 import { api } from "../api";
 import { kinds, type Kind } from "../types";
 import { Back, ErrorMessage } from "../components/UI";
-const testAddress = "г. Москва, ул. Тестовая, д. 1";
+import { AddressAutocomplete } from "../components/AddressAutocomplete";
+import type { AddressSuggestion } from "../types";
 export default function NewRequest() {
   const [query] = useSearchParams();
   const requested = query.get("kind");
@@ -12,14 +13,15 @@ export default function NewRequest() {
     requested && requested in kinds ? (requested as Kind) : "APPLICATION",
   );
   const [description, setDescription] = useState(""),
-    [address, setAddress] = useState(testAddress),
+    [house, setHouse] = useState<AddressSuggestion | null>(null),
+    [apartment, setApartment] = useState<AddressSuggestion | null>(null),
     [photo, setPhoto] = useState<File | null>(null),
     [error, setError] = useState(""),
     [busy, setBusy] = useState(false);
   const navigate = useNavigate();
   const bridge = useMaxBridge();
   const initialKind = useRef(kind);
-  const dirty = Boolean(description.trim() || photo || address !== testAddress || kind !== initialKind.current);
+  const dirty = Boolean(description.trim() || photo || house || apartment || kind !== initialKind.current);
   useEffect(() => {
     bridge.closingConfirmation(dirty);
     return () => bridge.closingConfirmation(false);
@@ -28,17 +30,20 @@ export default function NewRequest() {
     event.preventDefault();
     if (busy) return;
     setError("");
-    if (description.trim().length < 5 || address.trim().length < 5) {
-      setError(
-        "Заполните описание и адрес: не менее 5 символов в каждом поле.",
-      );
+    if (description.trim().length < 5) {
+      setError("Описание должно содержать не менее 5 символов.");
+      return;
+    }
+    if (!house) {
+      setError("Выберите дом из списка ГАР.");
       return;
     }
     setBusy(true);
     try {
       const body = new FormData();
       body.set("description", description.trim());
-      body.set("address", address.trim());
+      body.set("houseObjectId", house.objectId);
+      if (apartment) body.set("apartmentObjectId", apartment.objectId);
       body.set("kind", kind);
       if (photo) body.set("photo", photo);
       const item = await api.create(body);
@@ -106,25 +111,27 @@ export default function NewRequest() {
             rows={5}
           />
           <small>Укажите, где и когда вы заметили проблему.</small>
-          <label htmlFor="address">
-            Адрес дома <span>*</span>
-          </label>
-          <input
-            id="address"
+          <AddressAutocomplete
+            label="Адрес дома"
+            kind="house"
             required
-            minLength={5}
-            maxLength={300}
-            value={address}
-            onChange={(e) => setAddress(e.target.value)}
-            autoComplete="street-address"
+            value={house}
+            onChange={(next) => {
+              setHouse(next);
+              setApartment(null);
+            }}
+            placeholder="Начните вводить улицу и дом"
           />
-          <button
-            className="text-button"
-            type="button"
-            onClick={() => setAddress(testAddress)}
-          >
-            Использовать тестовый адрес
-          </button>
+          {house && (
+            <AddressAutocomplete
+              label="Квартира"
+              kind="apartment"
+              value={apartment}
+              onChange={setApartment}
+              parentObjectId={house.objectId}
+              placeholder="Выберите или начните вводить номер"
+            />
+          )}
           <label htmlFor="photo">
             Фотография <small>необязательно</small>
           </label>

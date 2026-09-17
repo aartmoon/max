@@ -4,6 +4,8 @@ import type {
   House,
   Organization,
   Status,
+  AddressKind,
+  AddressSuggestion,
 } from "./types";
 import { apiPath } from "./paths";
 async function call<T>(path: string, init?: RequestInit): Promise<T> {
@@ -45,6 +47,27 @@ export const api = {
 
 export const houseApi = {
   get: (signal?: AbortSignal) => call<House>("/house", { signal }),
+};
+export const addressApi = {
+  search: ({
+    q,
+    kind,
+    parentObjectId,
+    limit = 10,
+    signal,
+  }: {
+    q: string;
+    kind: AddressKind;
+    parentObjectId?: string;
+    limit?: number;
+    signal?: AbortSignal;
+  }) => {
+    const params = new URLSearchParams({ q, kind, limit: String(limit) });
+    if (parentObjectId) params.set("parentObjectId", parentObjectId);
+    return call<{ items: AddressSuggestion[] }>(`/addresses/search?${params}`, {
+      signal,
+    });
+  },
 };
 export const adminApi = {
   list: (signal?: AbortSignal) =>

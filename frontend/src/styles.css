@@ -364,6 +364,43 @@ textarea {
   display: inline-block;
   margin-top: 8px;
 }
+.address-autocomplete {
+  position: relative;
+}
+.address-options {
+  position: absolute;
+  z-index: 20;
+  left: 0;
+  right: 0;
+  max-height: 250px;
+  overflow-y: auto;
+  background: #fff;
+  border: 1px solid #cfd9ca;
+  border-radius: 10px;
+  box-shadow: 0 12px 30px rgba(34, 61, 54, 0.14);
+}
+.address-options button {
+  display: block;
+  width: 100%;
+  padding: 12px 14px;
+  border: 0;
+  border-bottom: 1px solid #edf0ea;
+  background: #fff;
+  color: #274238;
+  text-align: left;
+  font-size: 14px;
+}
+.address-options button:last-child {
+  border-bottom: 0;
+}
+.address-options button:hover,
+.address-options button.active,
+.address-options button[aria-selected="true"] {
+  background: #eef3eb;
+}
+.address-status {
+  min-height: 18px;
+}
 .text-button {
   border: 0;
   background: transparent;

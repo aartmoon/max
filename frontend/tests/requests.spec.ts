@@ -1,5 +1,24 @@
 import { test, expect } from "@playwright/test";
-test.beforeEach(async ({page}) => { await page.route("https://st.max.ru/js/max-web-app.js", route => route.abort()); });
+const demoHouse = {
+  objectId: "2000",
+  objectGuid: "20000000-0000-0000-0000-000000002000",
+  parentObjectId: "1001",
+  objectKind: "house",
+  displayName: "д. 1",
+  fullAddress: "г. Москва, ул. Тверская, д. 1",
+};
+test.beforeEach(async ({ page }) => {
+  await page.route("https://st.max.ru/js/max-web-app.js", (route) => route.abort());
+  await page.route("**/max/api/addresses/search*", (route) =>
+    route.fulfill({ contentType: "application/json", body: JSON.stringify({ items: [demoHouse] }) }),
+  );
+});
+
+async function selectDemoHouse(page: import("@playwright/test").Page) {
+  const input = page.getByRole("combobox", { name: "Адрес дома" });
+  await input.fill("Тверская");
+  await page.getByRole("option", { name: demoHouse.fullAddress }).click();
+}
 test("resident creates an issue with a photo and follows status history", async ({
   page,
 }) => {
@@ -15,6 +34,7 @@ test("resident creates an issue with a photo and follows status history", async 
   await page
     .getByLabel("Описание")
     .fill("Течёт труба в подъезде — браузерная проверка");
+  await selectDemoHouse(page);
   await page.getByLabel("Фотография").setInputFiles({
     name: "test.png",
     mimeType: "image/png",
@@ -67,6 +87,7 @@ test("question and application forms are accessible", async ({ page }) => {
 test("server error is shown without losing input", async ({ page }) => {
   await page.goto("/max/requests/new");
   await page.getByLabel("Описание").fill("Не работает лифт");
+  await selectDemoHouse(page);
   await page.route("**/api/requests", (route) =>
     route.fulfill({
       status: 503,
@@ -94,6 +115,7 @@ test("emergency request is processed by UK and its comments reach the resident",
     }),
   ).toBeVisible();
   await page.getByLabel("Описание").fill(description);
+  await selectDemoHouse(page);
   await page.getByRole("button", { name: "Продолжить" }).click();
   await expect(
     page.getByRole("heading", { name: "Заявка сохранена" }),
