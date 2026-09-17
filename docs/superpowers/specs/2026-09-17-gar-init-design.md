@@ -5,7 +5,7 @@
 Build a standalone Go 1.25+ Docker job that imports the Moscow GAR/FIAS XML
 snapshot from `/data/gar/*.XML` into PostgreSQL once, exits successfully, and
 provides normalized address data for house and apartment autocomplete in the
-backend.
+backend and request-creation UI.
 
 Backward compatibility with the existing ZIP importer and its database schema
 is not required. The old importer will be removed or replaced.
@@ -71,7 +71,8 @@ The standalone `gar-init` module has these boundaries:
 
 The existing backend no longer owns the raw GAR import. It only queries the
 finished search tables and persists the selected GAR identifiers with the
-application's house or resident data.
+application's house and request data. The frontend owns a reusable address
+autocomplete component used by the new-request form.
 
 ## Streaming and Memory Bound
 
@@ -188,7 +189,19 @@ rooms, car places, and steads. Parent-child relations come from
 `HOUSENUM`, `BUILDNUM`, `STRUCNUM`, `APARTNUMBER`, or `NUMBER`). Full addresses
 are derived from the active hierarchy path.
 
-The backend autocomplete API returns at least:
+The backend exposes these replacement APIs:
+
+- `GET /api/addresses/search?q=&kind=&parentObjectId=&limit=` searches active
+  entries. `kind` is optional and supports `address_object`, `house`,
+  `apartment`, `room`, `carplace`, and `stead`. `parentObjectId` restricts the
+  result to direct children of the selected GAR object.
+- `GET /api/addresses/{objectId}` returns one active address entry by numeric
+  GAR object ID.
+- `POST /api/houses/resolve` accepts a house object ID and creates or returns
+  the corresponding application `houses` row after checking that the GAR entry
+  is an active house.
+
+An autocomplete item contains:
 
 - `objectId`
 - `objectGuid`
@@ -197,10 +210,47 @@ The backend autocomplete API returns at least:
 - `displayName`
 - `fullAddress`
 
-Queries filter active rows and rank prefix matches before trigram matches. A
-parent ID may be supplied to support stepwise navigation from street to house
-and from house to apartment. Selected houses and apartments are stored by GAR
-object ID and GUID rather than only by display text.
+Queries filter active rows and rank prefix matches before trigram matches. An
+empty `q` is accepted only together with `parentObjectId`, which permits listing
+apartments of a selected house. Search input is limited to 300 Unicode
+characters and `limit` to 1-50.
+
+The request creation API accepts `houseObjectId` and optional
+`apartmentObjectId`; it does not accept a client-authored address as identity.
+The service loads both objects from `gar_search_addresses`, requires the first
+to be an active house, and, when present, requires the second to be an active
+apartment whose `parent_object_id` equals the selected house object ID. The
+server derives the display address from GAR and accepts no client-authored
+fallback address.
+
+The application `houses` table stores `gar_object_id bigint` and
+`object_guid uuid`, each unique when present. A request stores an immutable
+`address_snapshot`, the selected house GAR object ID/GUID, and optional
+apartment GAR object ID/GUID. This preserves what the user selected even if the
+search index is rebuilt later. Existing demo rows remain readable, but new
+requests must contain a valid GAR house selection.
+
+## Frontend Address Selection
+
+The free-text address field in `NewRequest` is replaced by a reusable accessible
+autocomplete:
+
+1. after two typed characters, debounce for 300 ms and call the house search;
+2. cancel the preceding HTTP request when the query changes;
+3. render keyboard-navigable suggestions with loading, empty, and error states;
+4. require the user to choose a house suggestion rather than merely leave typed
+   text in the input;
+5. after house selection, offer an optional apartment input restricted by the
+   house's `objectId`;
+6. clearing or editing a selected label clears the associated identifiers;
+7. submit `houseObjectId` and optional `apartmentObjectId` in the existing
+   multipart request alongside description, kind, and photo.
+
+The chosen full GAR address is displayed in request lists and detail screens.
+The current test-address shortcut is removed because it would bypass GAR
+identity validation. The `MyHouse` demo remains functional; when a selected GAR
+house has been resolved into the application `houses` table, its official
+address and GUID are returned by the existing house endpoints.
 
 ## Compose Lifecycle
 
@@ -237,6 +287,11 @@ XML, batching, cancellation, and progress counts.
 
 Integration tests use PostgreSQL to verify `CopyFrom`, per-file rollback,
 restart skipping, state mismatch detection, advisory locking, index creation,
-and search-address generation. Compose configuration is rendered and validated.
-The final verification runs all new Go tests, existing backend tests, and Docker
-build/config checks.
+and search-address generation. Backend tests cover ranking, kind/parent filters,
+house resolution, rejecting arbitrary or inactive IDs, rejecting an apartment
+from another house, and persisting the immutable address snapshot. Frontend
+tests cover debounce/cancellation, keyboard and pointer selection, mandatory
+house selection, optional apartment selection, stale-ID clearing, submission,
+and error recovery. Compose configuration is rendered and validated. The final
+verification runs all new Go tests, all frontend unit/browser tests, existing
+backend tests, and Docker build/config checks.
