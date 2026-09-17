@@ -40,6 +40,9 @@ services:
       DATABASE_URL: postgres://${POSTGRES_USER:-tvoydom}:${POSTGRES_PASSWORD:-tvoydom_demo}@postgres:5432/${POSTGRES_DB:-tvoydom}?sslmode=disable
       PORT: "8080"
       MOCK_STATUS_ENABLED: ${MOCK_STATUS_ENABLED:-true}
+      GIS_HOUSING_BASE_URL: ${GIS_HOUSING_BASE_URL:-https://dom.gosuslugi.ru}
+      GIS_HOUSING_TIMEOUT: ${GIS_HOUSING_TIMEOUT:-8s}
+      GIS_HOUSE_CACHE_TTL: ${GIS_HOUSE_CACHE_TTL:-24h}
       MAX_BOT_TOKEN: ${MAX_BOT_TOKEN:-}
       MAX_APP_URL: ${MAX_APP_URL:-}
       MAX_BOT_USERNAME: ${MAX_BOT_USERNAME:-}
