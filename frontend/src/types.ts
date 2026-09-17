@@ -14,9 +14,28 @@ export interface RequestItem {
   deadline: string;
   createdAt: string;
   address: string;
+  houseObjectId: string;
+  houseObjectGuid?: string;
+  apartmentObjectId?: string;
+  apartmentObjectGuid?: string;
   kind: Kind;
   text: string;
   hasPhoto: boolean;
+}
+export type AddressKind =
+  | "address_object"
+  | "house"
+  | "apartment"
+  | "room"
+  | "carplace"
+  | "stead";
+export interface AddressSuggestion {
+  objectId: string;
+  objectGuid?: string;
+  parentObjectId?: string;
+  objectKind: AddressKind;
+  displayName: string;
+  fullAddress: string;
 }
 export interface HistoryItem {
   id: number;
