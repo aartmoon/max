@@ -84,9 +84,7 @@ func (s *Store) Initialized(ctx context.Context) (bool, string, error) {
 	return initialized, *sourceType, nil
 }
 
-type ParseFile func(context.Context, importer.BatchWriter) (int64, error)
-
-func (s *Store) ImportFile(ctx context.Context, source importer.SourceFile, parse ParseFile) (count int64, skipped bool, err error) {
+func (s *Store) ImportFile(ctx context.Context, source importer.SourceFile, parse importer.ParseFile) (count int64, skipped bool, err error) {
 	tx, err := s.pool.Begin(ctx)
 	if err != nil {
 		return 0, false, fmt.Errorf("begin %s import: %w", source.Name, err)
