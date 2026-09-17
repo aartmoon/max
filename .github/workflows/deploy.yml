@@ -32,6 +32,13 @@ jobs:
           push: true
           tags: ${{ vars.DOCKERHUB_USERNAME }}/max-frontend:latest
 
+      - name: Build and push GAR initializer
+        uses: docker/build-push-action@v6
+        with:
+          context: ./gar-init
+          push: true
+          tags: ${{ vars.DOCKERHUB_USERNAME }}/max-gar-init:latest
+
   deploy:
     needs: build
     runs-on: ubuntu-latest
