@@ -104,6 +104,23 @@ func TestSeedDemoAndFinalizeBuildSearchEntries(t *testing.T) {
 	}
 }
 
+func TestLegacyGARVersionConstraintsAreRemoved(t *testing.T) {
+	for _, constraint := range []string{
+		"gar_address_objects_pkey",
+		"gar_address_objects_object_guid_key",
+		"gar_adm_hierarchy_pkey",
+		"gar_houses_pkey",
+		"gar_houses_object_guid_key",
+	} {
+		if !strings.Contains(schemaSQL, "DROP CONSTRAINT IF EXISTS "+constraint) {
+			t.Errorf("schema does not remove legacy constraint %s", constraint)
+		}
+	}
+	if strings.Contains(indexesSQL, "CREATE UNIQUE INDEX IF NOT EXISTS gar_address_objects_object_id") {
+		t.Error("OBJECTID must not be unique because GAR contains historical versions")
+	}
+}
+
 func testStore(t *testing.T) *Store {
 	t.Helper()
 	url := os.Getenv("GAR_TEST_DATABASE_URL")

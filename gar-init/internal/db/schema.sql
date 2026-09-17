@@ -151,6 +151,21 @@ CREATE TABLE IF NOT EXISTS gar_search_addresses (
 
 -- Upgrade empty tables created by the retired backend ZIP importer. These
 -- ALTER statements are idempotent and preserve any existing data.
+-- OBJECTID/OBJECTGUID identify the logical GAR object and repeat across its
+-- historical versions. The retired importer incorrectly made them unique.
+ALTER TABLE gar_address_objects DROP CONSTRAINT IF EXISTS gar_address_objects_pkey;
+ALTER TABLE gar_address_objects DROP CONSTRAINT IF EXISTS gar_address_objects_object_guid_key;
+ALTER TABLE gar_adm_hierarchy DROP CONSTRAINT IF EXISTS gar_adm_hierarchy_pkey;
+ALTER TABLE gar_houses DROP CONSTRAINT IF EXISTS gar_houses_pkey;
+ALTER TABLE gar_houses DROP CONSTRAINT IF EXISTS gar_houses_object_guid_key;
+
+DROP INDEX IF EXISTS gar_address_objects_object_id_uq;
+DROP INDEX IF EXISTS gar_houses_object_id_uq;
+DROP INDEX IF EXISTS gar_apartments_object_id_uq;
+DROP INDEX IF EXISTS gar_carplaces_object_id_uq;
+DROP INDEX IF EXISTS gar_rooms_object_id_uq;
+DROP INDEX IF EXISTS gar_steads_object_id_uq;
+
 ALTER TABLE gar_address_objects ADD COLUMN IF NOT EXISTS id bigint;
 ALTER TABLE gar_address_objects ADD COLUMN IF NOT EXISTS change_id bigint;
 ALTER TABLE gar_address_objects ADD COLUMN IF NOT EXISTS operation_type_id integer;
