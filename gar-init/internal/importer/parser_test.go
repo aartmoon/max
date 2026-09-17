@@ -84,6 +84,26 @@ func TestParseAcceptsFamilySpecificChildNames(t *testing.T) {
 	}
 }
 
+func TestParseChangeHistoryAcceptsAddressObjectUUID(t *testing.T) {
+	input := `<ITEM CHANGEID="10" OBJECTID="20" ADROBJECTID="7f89b3a2-70af-4957-9395-c72f882e56f5" OPERTYPEID="30"/>`
+	var row []any
+	count, err := Parse(context.Background(), strings.NewReader(input), mustFamily(t, "change_history"), 10, 100,
+		func(_ context.Context, _ model.Family, rows [][]any) error {
+			row = append([]any(nil), rows[0]...)
+			return nil
+		}, func(int64) {})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if count != 1 {
+		t.Fatalf("want 1 row, got %d", count)
+	}
+	values := rowByColumn(mustFamily(t, "change_history"), row)
+	if got := values["address_object_id"]; got != "7f89b3a2-70af-4957-9395-c72f882e56f5" {
+		t.Fatalf("unexpected ADROBJECTID: %#v", got)
+	}
+}
+
 func TestParseRejectsMalformedTypedAttributes(t *testing.T) {
 	tests := []struct {
 		name  string

@@ -119,7 +119,7 @@ CREATE TABLE IF NOT EXISTS gar_stead_params (
 );
 
 CREATE TABLE IF NOT EXISTS gar_change_history (
-    change_id bigint, object_id bigint, address_object_id bigint,
+    change_id bigint, object_id bigint, address_object_id uuid,
     operation_type_id integer, normative_doc_id bigint, change_date date,
     raw_attributes jsonb NOT NULL
 );
@@ -166,6 +166,12 @@ DROP INDEX IF EXISTS gar_carplaces_object_id_uq;
 DROP INDEX IF EXISTS gar_rooms_object_id_uq;
 DROP INDEX IF EXISTS gar_steads_object_id_uq;
 
+-- ADROBJECTID in GAR change history is a GUID. Early versions of this
+-- importer declared it as bigint, which rejects current GAR snapshots.
+ALTER TABLE gar_change_history
+    ALTER COLUMN address_object_id TYPE uuid
+    USING address_object_id::text::uuid;
+
 ALTER TABLE gar_address_objects ADD COLUMN IF NOT EXISTS id bigint;
 ALTER TABLE gar_address_objects ADD COLUMN IF NOT EXISTS change_id bigint;
 ALTER TABLE gar_address_objects ADD COLUMN IF NOT EXISTS operation_type_id integer;
@@ -199,5 +205,6 @@ ALTER TABLE gar_houses ADD COLUMN IF NOT EXISTS update_date date;
 ALTER TABLE gar_houses ADD COLUMN IF NOT EXISTS start_date date;
 ALTER TABLE gar_houses ADD COLUMN IF NOT EXISTS end_date date;
 ALTER TABLE gar_houses ADD COLUMN IF NOT EXISTS raw_attributes jsonb NOT NULL DEFAULT '{}';
+ALTER TABLE gar_houses ALTER COLUMN house_num DROP NOT NULL;
 ALTER TABLE gar_houses ALTER COLUMN add_num1 DROP NOT NULL;
 ALTER TABLE gar_houses ALTER COLUMN add_num2 DROP NOT NULL;

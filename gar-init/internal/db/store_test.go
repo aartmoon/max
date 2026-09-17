@@ -121,6 +121,50 @@ func TestLegacyGARVersionConstraintsAreRemoved(t *testing.T) {
 	}
 }
 
+func TestEnsureSchemaMigratesChangeHistoryAddressObjectIDToUUID(t *testing.T) {
+	store := testStore(t)
+	if _, err := store.pool.Exec(context.Background(), `
+		ALTER TABLE gar_change_history
+		ALTER COLUMN address_object_id TYPE bigint USING NULL
+	`); err != nil {
+		t.Fatal(err)
+	}
+	if err := store.EnsureSchema(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	var dataType string
+	err := store.pool.QueryRow(context.Background(), `
+		SELECT data_type
+		FROM information_schema.columns
+		WHERE table_schema = current_schema()
+		  AND table_name = 'gar_change_history'
+		  AND column_name = 'address_object_id'
+	`).Scan(&dataType)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if dataType != "uuid" {
+		t.Fatalf("want UUID column, got %s", dataType)
+	}
+}
+
+func TestEnsureSchemaMakesLegacyHouseNumberNullable(t *testing.T) {
+	store := testStore(t)
+	if _, err := store.pool.Exec(context.Background(), `
+		ALTER TABLE gar_houses ALTER COLUMN house_num SET NOT NULL
+	`); err != nil {
+		t.Fatal(err)
+	}
+	if err := store.EnsureSchema(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := store.pool.Exec(context.Background(), `
+		INSERT INTO gar_houses(raw_attributes) VALUES ('{}')
+	`); err != nil {
+		t.Fatalf("house without HOUSENUM must be accepted: %v", err)
+	}
+}
+
 func testStore(t *testing.T) *Store {
 	t.Helper()
 	url := os.Getenv("GAR_TEST_DATABASE_URL")

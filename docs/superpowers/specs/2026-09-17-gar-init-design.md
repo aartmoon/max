@@ -126,6 +126,7 @@ Common GAR identifiers are typed as follows:
 
 - `OBJECTID`, `PARENTOBJID`, `CHANGEID`, and row `ID`: `bigint`
 - `OBJECTGUID`: `uuid`
+- change-history `ADROBJECTID`: `uuid`
 - activity and actuality flags: `boolean`
 - GAR dates: `date`
 - names, numbers, paths, codes, and parameter values: `text`
@@ -134,6 +135,8 @@ Common GAR identifiers are typed as follows:
 Typed columns include every applicable occurrence of `OBJECTID`, `OBJECTGUID`,
 `PARENTOBJID`, `NAME`, `TYPENAME`, `LEVEL`, `HOUSENUM`, `BUILDNUM`, `STRUCNUM`,
 `APARTNUMBER`, `NUMBER`, `ISACTUAL`, and `ISACTIVE`.
+GAR number fields, including `HOUSENUM`, are nullable because some source rows
+legitimately omit them.
 
 `gar_import_state` stores the filename, entity family, byte size, imported row
 count, and timestamps. `gar_import_metadata` stores the singleton completion
