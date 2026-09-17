@@ -52,9 +52,19 @@ Optional variables:
 - `GAR_DATA_DIR`, default `/data/gar`
 - `GAR_BATCH_SIZE`, default `10000`
 - `GAR_LOG_EVERY`, default `100000`
+- `GAR_ALLOW_DEMO_DATA`, default `false`
 
 The PostgreSQL connection uses `sslmode=disable` inside the private Compose
 network. Configuration validation happens before connecting or reading files.
+
+For local development only, `GAR_ALLOW_DEMO_DATA=true` changes empty-input
+behavior. If the database is not initialized and the data directory is missing
+or contains no supported XML files, the job transactionally inserts a small,
+internally consistent Moscow hierarchy with streets, houses, and apartments,
+builds the same search indexes, marks the database initialized with source type
+`demo`, and exits successfully. It never falls back to demo data when some GAR
+files are present but the snapshot is incomplete or malformed. Production
+Compose leaves this flag false, so missing real input remains a fatal error.
 
 ## Components
 
@@ -127,7 +137,8 @@ Typed columns include every applicable occurrence of `OBJECTID`, `OBJECTGUID`,
 
 `gar_import_state` stores the filename, entity family, byte size, imported row
 count, and timestamps. `gar_import_metadata` stores the singleton completion
-marker and source snapshot date. `gar_search_addresses` is a derived,
+marker, source snapshot date, and source type (`xml` or `demo`).
+`gar_search_addresses` is a derived,
 denormalized autocomplete table containing object ID, GUID, parent ID, kind,
 display label, full address, normalized search text, level, and active status.
 
@@ -261,7 +272,9 @@ and stores no local state. The backend depends on `gar-init` with
 autocomplete data before the backend becomes available.
 
 The production Compose file exposes the host path as a configurable variable,
-defaulting to `/home/user1/gar/xml`.
+defaulting to `/home/user1/gar/xml`, and requires real XML files. Local Compose
+sets `GAR_ALLOW_DEMO_DATA=true`, allowing the job to seed development data when
+the mount is empty or absent.
 
 ## Logging and Failures
 
