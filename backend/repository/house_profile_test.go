@@ -18,6 +18,18 @@ func TestHouseProfileMigration(t *testing.T) {
 	}
 }
 
+func TestGARSearchDedupMigration(t *testing.T) {
+	for _, fragment := range []string{
+		"PARTITION BY object_kind, lower(full_address)",
+		"DELETE FROM gar_search_addresses",
+		"gar_search_addresses_kind_address_uq",
+	} {
+		if !strings.Contains(garSearchDedupMigration, fragment) {
+			t.Fatalf("GAR search migration missing %q", fragment)
+		}
+	}
+}
+
 func TestHouseProfileQueriesKeepNullableAndRawFields(t *testing.T) {
 	for _, fragment := range []string{"cadastral_number", "total_area", "living_area", "floors", "entrances", "apartments", "year_built", "organization", "manager", "contact", "raw_payload", "fetched_at"} {
 		if !strings.Contains(selectHouseProfile, fragment) || !strings.Contains(upsertHouseProfile, fragment) {

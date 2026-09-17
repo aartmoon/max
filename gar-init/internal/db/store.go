@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"tvoydom/gar-init/internal/importer"
 	"tvoydom/gar-init/internal/model"
@@ -136,7 +137,7 @@ func (s *Store) Finalize(ctx context.Context, sourceType string, sourceDate time
 		return fmt.Errorf("begin GAR finalization: %w", err)
 	}
 	defer tx.Rollback(ctx)
-	if _, err := tx.Exec(ctx, searchSQL); err != nil {
+	if err := executeStatements(ctx, tx, searchSQL); err != nil {
 		return fmt.Errorf("build GAR search addresses: %w", err)
 	}
 	if _, err := tx.Exec(ctx, `INSERT INTO gar_import_metadata(singleton,initialized,initialized_at,source_date,source_type) VALUES(true,true,now(),$1,$2) ON CONFLICT(singleton) DO UPDATE SET initialized=true,initialized_at=EXCLUDED.initialized_at,source_date=EXCLUDED.source_date,source_type=EXCLUDED.source_type`, sourceDate, sourceType); err != nil {
@@ -149,12 +150,20 @@ func (s *Store) Finalize(ctx context.Context, sourceType string, sourceDate time
 }
 
 func (s *Store) executeStatements(ctx context.Context, sql string) error {
+	return executeStatements(ctx, s.pool, sql)
+}
+
+type sqlExecutor interface {
+	Exec(context.Context, string, ...any) (pgconn.CommandTag, error)
+}
+
+func executeStatements(ctx context.Context, executor sqlExecutor, sql string) error {
 	for index, statement := range strings.Split(sql, ";") {
 		statement = strings.TrimSpace(statement)
 		if statement == "" {
 			continue
 		}
-		if _, err := s.pool.Exec(ctx, statement); err != nil {
+		if _, err := executor.Exec(ctx, statement); err != nil {
 			return fmt.Errorf("execute statement %d: %w", index+1, err)
 		}
 	}

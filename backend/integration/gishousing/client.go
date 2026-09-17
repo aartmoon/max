@@ -7,6 +7,7 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"strconv"
 	"strings"
 	"time"
 
@@ -31,16 +32,16 @@ func NewClient(baseURL string, timeout time.Duration, httpClient *http.Client) C
 }
 
 type houseDTO struct {
-	GUID          string   `json:"guid"`
-	HouseHMGUID   string   `json:"houseHMGuid"`
-	Cadastre      *string  `json:"cadastreNumber"`
-	Total         *float64 `json:"totalSquare"`
-	Residential   *float64 `json:"residentialSquare"`
-	Floors        *int     `json:"floorCountMax"`
-	Entrances     *int     `json:"entranceCount"`
-	Apartments    *int     `json:"residentialPremiseCount"`
-	BuildingYear  *int     `json:"buildingYear"`
-	OperationYear *int     `json:"operationYear"`
+	GUID          string       `json:"guid"`
+	HouseHMGUID   string       `json:"houseHMGuid"`
+	Cadastre      *string      `json:"cadastreNumber"`
+	Total         *float64     `json:"totalSquare"`
+	Residential   *float64     `json:"residentialSquare"`
+	Floors        *flexibleInt `json:"floorCountMax"`
+	Entrances     *flexibleInt `json:"entranceCount"`
+	Apartments    *flexibleInt `json:"residentialPremiseCount"`
+	BuildingYear  *flexibleInt `json:"buildingYear"`
+	OperationYear *flexibleInt `json:"operationYear"`
 	HouseType     struct {
 		Code string `json:"code"`
 	} `json:"houseType"`
@@ -57,6 +58,36 @@ type houseDTO struct {
 	ChiefLastName   string `json:"chiefLastName"`
 	ChiefFirstName  string `json:"chiefFirstName"`
 	ChiefMiddleName string `json:"chiefMiddleName"`
+}
+
+type flexibleInt int
+
+func (v *flexibleInt) UnmarshalJSON(data []byte) error {
+	raw := strings.TrimSpace(string(data))
+	if raw == "null" {
+		return nil
+	}
+	if strings.HasPrefix(raw, `"`) {
+		var text string
+		if err := json.Unmarshal(data, &text); err != nil {
+			return err
+		}
+		raw = strings.TrimSpace(text)
+	}
+	value, err := strconv.Atoi(raw)
+	if err != nil {
+		return fmt.Errorf("expected integer, got %s", string(data))
+	}
+	*v = flexibleInt(value)
+	return nil
+}
+
+func intPointer(v *flexibleInt) *int {
+	if v == nil {
+		return nil
+	}
+	value := int(*v)
+	return &value
 }
 
 func (c Client) FetchHouse(ctx context.Context, fiasGUID string) (domain.HouseProfile, error) {
@@ -106,8 +137,8 @@ func (c Client) FetchHouse(ctx context.Context, fiasGUID string) (domain.HousePr
 	return domain.HouseProfile{
 		GISHouseGUID: detail.GUID, GISHouseType: detail.HouseType.Code,
 		CadastralNumber: detail.Cadastre, TotalArea: detail.Total, LivingArea: detail.Residential,
-		Floors: detail.Floors, Entrances: detail.Entrances, Apartments: detail.Apartments,
-		YearBuilt: year, Organization: organization, Manager: manager, Contact: optional(detail.Management.Phone),
+		Floors: intPointer(detail.Floors), Entrances: intPointer(detail.Entrances), Apartments: intPointer(detail.Apartments),
+		YearBuilt: intPointer(year), Organization: organization, Manager: manager, Contact: optional(detail.Management.Phone),
 		RawPayload: raw, FetchedAt: c.now().UTC(),
 	}, nil
 }

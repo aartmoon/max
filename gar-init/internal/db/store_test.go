@@ -145,6 +145,12 @@ func TestLegacyGARVersionConstraintsAreRemoved(t *testing.T) {
 	}
 }
 
+func TestSearchSQLKeepsOneEntryPerCanonicalAddress(t *testing.T) {
+	if !strings.Contains(searchSQL, "ROW_NUMBER() OVER") || !strings.Contains(searchSQL, "PARTITION BY object_kind, lower(full_address)") {
+		t.Fatal("search SQL must rank duplicate canonical addresses before inserting them")
+	}
+}
+
 func TestEnsureSchemaMigratesChangeHistoryAddressObjectIDToUUID(t *testing.T) {
 	store := testStore(t)
 	if _, err := store.pool.Exec(context.Background(), `

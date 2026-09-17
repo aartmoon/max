@@ -27,7 +27,7 @@ func TestClientFetchHouse(t *testing.T) {
 		if !strings.HasSuffix(r.URL.Path, "/1/"+gis) {
 			t.Fatalf("unexpected detail request: %s", r.URL.String())
 		}
-		_, _ = w.Write([]byte(`{"guid":"` + gis + `","houseType":{"code":"1"},"address":{"house":{"houseGuid":"` + fias + `"}},"cadastreNumber":"77:01:0000000:1","totalSquare":12345.6,"residentialSquare":9876.5,"floorCountMax":16,"entranceCount":4,"residentialPremiseCount":120,"buildingYear":1987,"managementOrganization":{"shortName":"ООО УК Дом","phone":"+7 495 000-00-00"}}`))
+		_, _ = w.Write([]byte(`{"guid":"` + gis + `","houseType":{"code":"1"},"address":{"house":{"houseGuid":"` + fias + `"}},"cadastreNumber":"77:01:0000000:1","totalSquare":12345.6,"residentialSquare":9876.5,"floorCountMax":16,"entranceCount":4,"residentialPremiseCount":120,"buildingYear":"1987","managementOrganization":{"shortName":"ООО УК Дом","phone":"+7 495 000-00-00"}}`))
 	}))
 	defer server.Close()
 

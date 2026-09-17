@@ -1,10 +1,12 @@
+DELETE FROM gar_search_addresses;
+
 WITH RECURSIVE active_hierarchy AS (
     SELECT DISTINCT ON (object_id) object_id, parent_object_id
     FROM gar_adm_hierarchy
     WHERE is_active IS TRUE
     ORDER BY object_id, update_date DESC NULLS LAST, id DESC NULLS LAST
 ),
-nodes AS (
+node_candidates AS (
     SELECT object_id, object_guid, 'address_object'::text AS object_kind,
            trim(concat_ws(' ', type_name, name)) AS display_name,
            level, true AS is_active
@@ -33,6 +35,13 @@ nodes AS (
     UNION ALL
     SELECT object_id, object_guid, 'stead', trim(concat_ws(' ', 'уч.', number)), 9, true
     FROM gar_steads WHERE is_active IS TRUE AND is_actual IS TRUE AND object_id IS NOT NULL
+),
+nodes AS (
+    SELECT DISTINCT ON (object_kind, object_id) object_id, object_guid, object_kind,
+           display_name, level, is_active
+    FROM node_candidates
+    WHERE display_name <> ''
+    ORDER BY object_kind, object_id, object_guid NULLS LAST, display_name
 ),
 walk AS (
     SELECT n.object_id AS root_object_id, n.object_id AS current_object_id,
@@ -63,10 +72,18 @@ ready AS (
     JOIN best b ON b.root_object_id = n.object_id
     LEFT JOIN active_hierarchy h ON h.object_id = n.object_id
     WHERE n.display_name <> ''
+),
+ranked AS (
+    SELECT ready.*, ROW_NUMBER() OVER (
+        PARTITION BY object_kind, lower(full_address)
+        ORDER BY object_guid NULLS LAST, object_id
+    ) AS duplicate_rank
+    FROM ready
 )
 INSERT INTO gar_search_addresses(object_id, object_guid, parent_object_id, object_kind, display_name, full_address, search_text, level, is_active)
 SELECT object_id, object_guid, parent_object_id, object_kind, display_name, full_address, search_text, level, is_active
-FROM ready
+FROM ranked
+WHERE duplicate_rank = 1
 ON CONFLICT(object_id) DO UPDATE SET
     object_guid = EXCLUDED.object_guid,
     parent_object_id = EXCLUDED.parent_object_id,
@@ -76,3 +93,6 @@ ON CONFLICT(object_id) DO UPDATE SET
     search_text = EXCLUDED.search_text,
     level = EXCLUDED.level,
     is_active = EXCLUDED.is_active;
+
+CREATE UNIQUE INDEX IF NOT EXISTS gar_search_addresses_kind_address_uq
+    ON gar_search_addresses (object_kind, lower(full_address));
