@@ -2,7 +2,6 @@ package service
 
 import (
 	"context"
-	"errors"
 	"strconv"
 	"strings"
 
@@ -15,7 +14,6 @@ type AddressProvider interface {
 }
 
 type HouseRepository interface {
-	GetHouseByGARObjectID(context.Context, int64) (domain.House, error)
 	ResolveHouse(context.Context, domain.AddressInfo) (domain.House, error)
 }
 
@@ -27,11 +25,6 @@ type HouseService struct {
 func (s HouseService) Resolve(ctx context.Context, rawObjectID string) (domain.House, error) {
 	objectID, err := parseObjectID(rawObjectID)
 	if err != nil {
-		return domain.House{}, err
-	}
-	if h, err := s.Repo.GetHouseByGARObjectID(ctx, objectID); err == nil {
-		return h, nil
-	} else if !errors.Is(err, domain.ErrNotFound) {
 		return domain.House{}, err
 	}
 	info, err := s.Addresses.GetAddress(ctx, objectID)

@@ -5,7 +5,7 @@ import (
 	"time"
 )
 
-var ErrNotFound = errors.New("обращение не найдено")
+var ErrNotFound = errors.New("объект не найден")
 var ErrConflict = errors.New("переход статуса недоступен")
 var ErrInvalidAddressID = errors.New("некорректный идентификатор адреса ГАР")
 var ErrInvalidHouse = errors.New("выбранный объект не является домом")

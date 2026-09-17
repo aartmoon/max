@@ -78,10 +78,6 @@ func (s RequestService) Create(ctx context.Context, in CreateInput) (domain.Requ
 	if houseAddress.ObjectKind != "house" || !houseAddress.IsActive {
 		return domain.Request{}, domain.ErrInvalidHouse
 	}
-	house, err := s.Houses.ResolveHouse(ctx, houseAddress)
-	if err != nil {
-		return domain.Request{}, err
-	}
 	address := houseAddress.FullAddress
 	var apartment domain.AddressInfo
 	if in.ApartmentObjectID != "" {
@@ -97,6 +93,10 @@ func (s RequestService) Create(ctx context.Context, in CreateInput) (domain.Requ
 			return domain.Request{}, domain.ErrInvalidApartment
 		}
 		address = apartment.FullAddress
+	}
+	house, err := s.Houses.ResolveHouse(ctx, houseAddress)
+	if err != nil {
+		return domain.Request{}, err
 	}
 	category := s.Classifier.Classify(in.Description)
 	org := s.Router.Route(category)

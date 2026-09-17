@@ -59,9 +59,14 @@ func TestResolveHouseCreatesIdentityFromGARObject(t *testing.T) {
 	}
 }
 
-func TestResolveHouseReturnsExistingHouseWithoutProviderCall(t *testing.T) {
+func TestResolveHouseReturnsExistingHouseAfterValidatingCurrentGARObject(t *testing.T) {
 	existing := domain.House{ID: "7", GARObjectID: "10", Address: "old address"}
-	svc := HouseService{Repo: &fakeHouseRepository{byObjectID: map[string]domain.House{"10": existing}}, Addresses: fakeAddressProvider{items: nil}}
+	svc := HouseService{
+		Repo: &fakeHouseRepository{byObjectID: map[string]domain.House{"10": existing}},
+		Addresses: fakeAddressProvider{items: map[int64]domain.AddressInfo{
+			10: {ObjectID: "10", ObjectKind: "house", FullAddress: "new address", IsActive: true},
+		}},
+	}
 	house, err := svc.Resolve(context.Background(), "10")
 	if err != nil || house.ID != "7" {
 		t.Fatalf("house=%+v err=%v", house, err)
