@@ -2,8 +2,11 @@ package db
 
 import (
 	"context"
+	"errors"
 	"fmt"
 )
+
+var ErrDatabaseNotEmpty = errors.New("GAR database is not empty")
 
 func (s *Store) SeedDemo(ctx context.Context) error {
 	tx, err := s.pool.Begin(ctx)
@@ -11,6 +14,19 @@ func (s *Store) SeedDemo(ctx context.Context) error {
 		return fmt.Errorf("begin GAR demo seed: %w", err)
 	}
 	defer tx.Rollback(ctx)
+	var hasRows bool
+	if err := tx.QueryRow(ctx, `SELECT EXISTS(
+        SELECT 1 FROM gar_import_state
+        UNION ALL SELECT 1 FROM gar_address_objects
+        UNION ALL SELECT 1 FROM gar_houses
+        UNION ALL SELECT 1 FROM gar_apartments
+        UNION ALL SELECT 1 FROM gar_search_addresses
+    )`).Scan(&hasRows); err != nil {
+		return fmt.Errorf("check GAR database before demo seed: %w", err)
+	}
+	if hasRows {
+		return ErrDatabaseNotEmpty
+	}
 	statements := []string{
 		`INSERT INTO gar_address_objects(id,object_id,object_guid,change_id,name,type_name,level,update_date,start_date,end_date,is_actual,is_active,raw_attributes) VALUES
           (1,1000,'10000000-0000-0000-0000-000000001000',1,'Москва','г',1,current_date,current_date,'2079-06-06',true,true,'{}'),

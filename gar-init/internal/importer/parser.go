@@ -15,6 +15,7 @@ import (
 )
 
 type BatchWriter func(context.Context, model.Family, [][]any) error
+type ParseFile func(context.Context, BatchWriter) (int64, error)
 
 var uuidPattern = regexp.MustCompile(`(?i)^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$`)
 
