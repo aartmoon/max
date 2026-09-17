@@ -104,6 +104,30 @@ func TestSeedDemoAndFinalizeBuildSearchEntries(t *testing.T) {
 	}
 }
 
+func TestExecuteStatementsCommitsCompletedIndexBeforeLaterFailure(t *testing.T) {
+	store := testStore(t)
+	ctx := context.Background()
+	if _, err := store.pool.Exec(ctx, `CREATE TABLE index_transaction_probe(value bigint)`); err != nil {
+		t.Fatal(err)
+	}
+
+	err := store.executeStatements(ctx, `
+		CREATE INDEX index_transaction_probe_value_idx ON index_transaction_probe(value);
+		CREATE INDEX index_transaction_probe_missing_idx ON missing_table(value);
+	`)
+	if err == nil {
+		t.Fatal("expected the second index creation to fail")
+	}
+
+	var exists bool
+	if err := store.pool.QueryRow(ctx, `SELECT to_regclass('index_transaction_probe_value_idx') IS NOT NULL`).Scan(&exists); err != nil {
+		t.Fatal(err)
+	}
+	if !exists {
+		t.Fatal("the successfully created index must remain committed")
+	}
+}
+
 func TestLegacyGARVersionConstraintsAreRemoved(t *testing.T) {
 	for _, constraint := range []string{
 		"gar_address_objects_pkey",
