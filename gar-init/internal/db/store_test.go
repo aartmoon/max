@@ -92,7 +92,7 @@ func TestSeedDemoAndFinalizeBuildSearchEntries(t *testing.T) {
 	if err := store.pool.QueryRow(context.Background(), `SELECT count(*) FILTER (WHERE object_kind='house'), count(*) FILTER (WHERE object_kind='apartment') FROM gar_search_addresses`).Scan(&houses, &apartments); err != nil {
 		t.Fatal(err)
 	}
-	if houses < 2 || apartments < 3 {
+	if houses != 10 || apartments < 3 {
 		t.Fatalf("houses=%d apartments=%d", houses, apartments)
 	}
 	var address string
@@ -103,7 +103,7 @@ func TestSeedDemoAndFinalizeBuildSearchEntries(t *testing.T) {
 		t.Fatalf("unexpected full address %q", address)
 	}
 	for _, table := range []string{
-		"gar_address_objects", "gar_addr_object_params", "gar_addr_object_divisions",
+		"gar_address_objects", "gar_addr_object_params",
 		"gar_adm_hierarchy", "gar_mun_hierarchy", "gar_houses", "gar_house_params",
 		"gar_apartments", "gar_apartment_params", "gar_carplaces", "gar_carplace_params",
 		"gar_rooms", "gar_room_params", "gar_steads", "gar_stead_params",
