@@ -1,2 +1,2 @@
 id,object_id,object_guid,change_id,number,operation_type_id,update_date,start_date,end_date,is_actual,is_active,raw_attributes
-1,4000,40000000-0000-0000-0000-000000004000,1,1,10,2026-09-17,2026-09-17,2079-06-06,true,true,{}
+1,4000,40000000-0000-0000-0000-000000004000,1,1,10,2026-09-17,2026-09-17,2079-06-06,t,t,{}

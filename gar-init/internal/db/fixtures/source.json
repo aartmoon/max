@@ -1,0 +1,7 @@
+{
+  "database": "bootstrap",
+  "sourceDate": "2026-09-17",
+  "generatedAt": "2026-09-18T00:00:00Z",
+  "streetId": 1002,
+  "houseIds": [2000, 2001]
+}
