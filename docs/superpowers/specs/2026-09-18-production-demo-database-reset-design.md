@@ -138,6 +138,44 @@ then replaces the tracked fixture. Validation must prove:
 - the fixture is byte-for-byte deterministic when generated twice from the
   same source.
 
+### Production parity check
+
+Fixture validation must compare the extracted data with the production source,
+not only check the fixture internally. The extractor runs all source reads in a
+single read-only, repeatable-read transaction so that concurrent production
+activity cannot produce a mixed snapshot.
+
+For every GAR table represented in the fixture, generate a canonical export of
+the selected production rows with:
+
+- the complete column list in schema order;
+- deterministic row ordering based on the table's logical identifiers and
+  version/change identifiers;
+- explicit null representation;
+- canonical PostgreSQL text representation for UUID, date, boolean, numeric,
+  and JSONB values.
+
+Write a source manifest outside PostgreSQL containing the production database
+name, GAR source date, extraction timestamp, selected street and house IDs,
+per-table row counts, and SHA-256 hashes of the canonical exports. Do not place
+database credentials or connection strings in the manifest.
+
+Load the generated fixture into a fresh verification database, regenerate the
+same canonical exports and manifest, and compare every table byte-for-byte.
+Also compare `gar_search_addresses` for the retained object IDs after rebuilding
+it from the fixture. A missing row, extra row, changed column value, changed
+relationship, or hash mismatch fails validation and blocks the reset.
+
+Immediately before the destructive production reset, repeat the production
+selection and manifest generation in a new read-only, repeatable-read
+transaction. Compare it with the committed fixture manifest. If the selected
+production rows changed since fixture generation, stop and regenerate the
+fixture; do not delete the database.
+
+Retain the canonical source exports and both matching manifests together with
+the reset backup. This supplies an auditable record of the production values
+that were copied into the demo fixture.
+
 ## Runtime Initialization
 
 Introduce an explicit GAR operating mode:
@@ -164,19 +202,23 @@ The reset is an explicit operator action, not an automatic migration.
 2. Stop the production backend and `gar-init` services so no process holds the
    migration or GAR advisory lock.
 3. Extract the Arbat fixture from the still-intact production database to a
-   file outside the PostgreSQL volume.
+   file outside the PostgreSQL volume, including canonical per-table exports
+   and the production source manifest.
 4. Copy the fixture off the VM, validate it in a fresh local database, and
-   commit it to the repository.
+   verify byte-for-byte parity with the production exports before committing it
+   and its non-secret manifest to the repository.
 5. Create a full compressed database dump or provider volume snapshot when
    storage permits. The validated fixture is mandatory; the full backup is the
    rollback artifact for non-address production data.
 6. Deploy the image containing the validated fixture while keeping application
    traffic stopped.
-7. Reset PostgreSQL with `DROP SCHEMA public CASCADE`, recreate `public` owned
+7. Regenerate the production manifest and require an exact match with the
+   committed fixture manifest. Abort if any selected row has changed.
+8. Reset PostgreSQL with `DROP SCHEMA public CASCADE`, recreate `public` owned
    by the application database owner, and restore the normal schema privileges.
-8. Start `gar-init` in demo mode and wait for exit code zero.
-9. Start the backend and frontend.
-10. Run the verification checks below before restoring traffic.
+9. Start `gar-init` in demo mode and wait for exit code zero.
+10. Start the backend and frontend.
+11. Run the verification checks below before restoring traffic.
 
 The reset command must require the operator to supply the expected database
 name explicitly and must abort when it does not match. It must print the target
@@ -187,7 +229,9 @@ not run as part of application startup or a normal deploy.
 
 Automated tests cover demo-mode selection, refusal to mix demo and full modes,
 idempotent seeding, per-table fixture counts, relationship closure, search
-construction, and backend address lookup/house-resolution behavior.
+construction, canonical export generation, manifest comparison, detection of a
+single changed source value, and backend address lookup/house-resolution
+behavior.
 
 Production smoke checks verify:
 
