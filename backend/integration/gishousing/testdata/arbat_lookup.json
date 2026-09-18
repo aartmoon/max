@@ -1,0 +1,10 @@
+{
+  "houseList": [
+    {
+      "guid": "105a84e6-01b5-4bbb-a26d-e5ec59bee321",
+      "houseHMGuid": "105a84e6-01b5-4bbb-a26d-e5ec59bee321",
+      "houseType": {"code": "1"},
+      "house": {"code": "151b9095-9f1d-4ab5-afc6-db971eed9d49"}
+    }
+  ]
+}
