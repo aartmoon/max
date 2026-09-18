@@ -1,0 +1,4 @@
+id,object_id,object_guid,change_id,number,apart_number,apart_type,operation_type_id,update_date,start_date,end_date,is_actual,is_active,raw_attributes
+1,3000,30000000-0000-0000-0000-000000003000,1,1,1,1,10,2026-09-17,2026-09-17,2079-06-06,true,true,{}
+2,3001,30000000-0000-0000-0000-000000003001,1,2,2,1,10,2026-09-17,2026-09-17,2079-06-06,true,true,{}
+3,3002,30000000-0000-0000-0000-000000003002,1,15,15,1,10,2026-09-17,2026-09-17,2079-06-06,true,true,{}

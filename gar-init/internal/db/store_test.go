@@ -102,6 +102,21 @@ func TestSeedDemoAndFinalizeBuildSearchEntries(t *testing.T) {
 	if !strings.Contains(address, "Москва") || !strings.Contains(address, "кв.") {
 		t.Fatalf("unexpected full address %q", address)
 	}
+	for _, table := range []string{
+		"gar_address_objects", "gar_addr_object_params", "gar_addr_object_divisions",
+		"gar_adm_hierarchy", "gar_mun_hierarchy", "gar_houses", "gar_house_params",
+		"gar_apartments", "gar_apartment_params", "gar_carplaces", "gar_carplace_params",
+		"gar_rooms", "gar_room_params", "gar_steads", "gar_stead_params",
+		"gar_change_history", "gar_normative_docs", "gar_reestr_objects",
+	} {
+		var count int
+		if err := store.pool.QueryRow(context.Background(), "SELECT count(*) FROM "+pgx.Identifier{table}.Sanitize()).Scan(&count); err != nil {
+			t.Fatal(err)
+		}
+		if count == 0 {
+			t.Errorf("fixture table %s is empty", table)
+		}
+	}
 }
 
 func TestExecuteStatementsCommitsCompletedIndexBeforeLaterFailure(t *testing.T) {
@@ -216,7 +231,7 @@ func testStore(t *testing.T) *Store {
 	if err != nil {
 		t.Fatal(err)
 	}
-	cfg.ConnConfig.RuntimeParams["search_path"] = schema
+	cfg.ConnConfig.RuntimeParams["search_path"] = schema + ", public"
 	pool, err := pgxpool.NewWithConfig(ctx, cfg)
 	if err != nil {
 		t.Fatal(err)

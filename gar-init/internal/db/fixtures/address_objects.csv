@@ -1,0 +1,4 @@
+id,object_id,object_guid,change_id,name,type_name,level,operation_type_id,previous_id,next_id,update_date,start_date,end_date,is_actual,is_active,raw_attributes
+1,1000,10000000-0000-0000-0000-000000001000,1,Москва,г,1,10,,,2026-09-17,2026-09-17,2079-06-06,true,true,{}
+2,1001,10000000-0000-0000-0000-000000001001,1,Тверская,ул,8,10,,,2026-09-17,2026-09-17,2079-06-06,true,true,{}
+3,1002,10000000-0000-0000-0000-000000001002,1,Арбат,ул,8,10,,,2026-09-17,2026-09-17,2079-06-06,true,true,{}

@@ -1,0 +1,2 @@
+id,object_id,parent_object_id,change_id,region_code,area_code,city_code,place_code,plan_code,street_code,path,update_date,start_date,end_date,is_active,oktmo,raw_attributes
+1,1002,1000,1,77,,,,,002,1000.1002,2026-09-17,2026-09-17,2079-06-06,true,45374000,{}

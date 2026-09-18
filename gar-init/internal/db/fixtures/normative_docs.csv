@@ -1,0 +1,2 @@
+id,name,number,document_date,document_type,document_kind,update_date,organization_name,registration_number,registration_date,acceptance_date,comment,raw_attributes
+7000,Демо документ,1,2026-09-17,1,1,2026-09-17,Демо организация,1,2026-09-17,2026-09-17,Демо данные,{}
