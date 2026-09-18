@@ -21,13 +21,13 @@ func TestClientFetchHouse(t *testing.T) {
 			if !strings.Contains(r.URL.Path, fias) || r.URL.Query().Get("useReadOnlyDataSource") != "true" {
 				t.Fatalf("unexpected lookup request: %s", r.URL.String())
 			}
-			_, _ = w.Write([]byte(`{"houseList":[{"guid":"` + gis + `","houseHMGuid":"` + gis + `","houseType":{"code":"1"},"address":{"house":{"houseGuid":"` + fias + `"}},"entranceCount":4,"residentialPremiseCount":120,"managementOrganization":{"shortName":"ООО УК Дом","phone":"+7 495 000-00-00"}}]}`))
+			_, _ = w.Write([]byte(`{"houseList":[{"guid":"` + gis + `","houseHMGuid":"` + gis + `","houseType":{"code":"1"},"house":{"code":"` + fias + `"},"entranceCount":4,"residentialPremiseCount":120,"managementOrganization":{"shortName":"ООО УК Дом","phone":"+7 495 000-00-00"}}]}`))
 			return
 		}
 		if !strings.HasSuffix(r.URL.Path, "/1/"+gis) {
 			t.Fatalf("unexpected detail request: %s", r.URL.String())
 		}
-		_, _ = w.Write([]byte(`{"guid":"` + gis + `","houseType":{"code":"1"},"address":{"house":{"houseGuid":"` + fias + `"}},"cadastreNumber":"77:01:0000000:1","totalSquare":12345.6,"residentialSquare":9876.5,"floorCountMax":16,"entranceCount":4,"residentialPremiseCount":120,"buildingYear":"1987","managementOrganization":{"shortName":"ООО УК Дом","phone":"+7 495 000-00-00"}}`))
+		_, _ = w.Write([]byte(`{"guid":"` + gis + `","houseType":{"code":"1"},"address":{"house":{"houseGuid":"` + fias + `"}},"cadastreNumber":"77:01:0000000:1","totalSquare":"12345.6","residentialSquare":"9876.5","floorCountMax":16,"entranceCount":4,"residentialPremiseCount":120,"buildingYear":"1987","managementOrganization":{"shortName":"ООО УК Дом","phone":"+7 495 000-00-00"}}`))
 	}))
 	defer server.Close()
 
@@ -41,7 +41,7 @@ func TestClientFetchHouse(t *testing.T) {
 	if profile.GISHouseGUID != gis || profile.GISHouseType != "1" || profile.CadastralNumber == nil || *profile.CadastralNumber != "77:01:0000000:1" {
 		t.Fatalf("unexpected identity: %+v", profile)
 	}
-	if profile.TotalArea == nil || *profile.TotalArea != 12345.6 || profile.Floors == nil || *profile.Floors != 16 || profile.Apartments == nil || *profile.Apartments != 120 {
+	if profile.TotalArea == nil || *profile.TotalArea != 12345.6 || profile.LivingArea == nil || *profile.LivingArea != 9876.5 || profile.Floors == nil || *profile.Floors != 16 || profile.Apartments == nil || *profile.Apartments != 120 {
 		t.Fatalf("unexpected characteristics: %+v", profile)
 	}
 	if profile.Organization == nil || *profile.Organization != "ООО УК Дом" || profile.Contact == nil || *profile.Contact != "+7 495 000-00-00" || profile.FetchedAt != now || len(profile.RawPayload) == 0 {

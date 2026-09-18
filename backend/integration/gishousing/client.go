@@ -32,16 +32,16 @@ func NewClient(baseURL string, timeout time.Duration, httpClient *http.Client) C
 }
 
 type houseDTO struct {
-	GUID          string       `json:"guid"`
-	HouseHMGUID   string       `json:"houseHMGuid"`
-	Cadastre      *string      `json:"cadastreNumber"`
-	Total         *float64     `json:"totalSquare"`
-	Residential   *float64     `json:"residentialSquare"`
-	Floors        *flexibleInt `json:"floorCountMax"`
-	Entrances     *flexibleInt `json:"entranceCount"`
-	Apartments    *flexibleInt `json:"residentialPremiseCount"`
-	BuildingYear  *flexibleInt `json:"buildingYear"`
-	OperationYear *flexibleInt `json:"operationYear"`
+	GUID          string         `json:"guid"`
+	HouseHMGUID   string         `json:"houseHMGuid"`
+	Cadastre      *string        `json:"cadastreNumber"`
+	Total         *flexibleFloat `json:"totalSquare"`
+	Residential   *flexibleFloat `json:"residentialSquare"`
+	Floors        *flexibleInt   `json:"floorCountMax"`
+	Entrances     *flexibleInt   `json:"entranceCount"`
+	Apartments    *flexibleInt   `json:"residentialPremiseCount"`
+	BuildingYear  *flexibleInt   `json:"buildingYear"`
+	OperationYear *flexibleInt   `json:"operationYear"`
 	HouseType     struct {
 		Code string `json:"code"`
 	} `json:"houseType"`
@@ -50,6 +50,9 @@ type houseDTO struct {
 			GUID string `json:"houseGuid"`
 		} `json:"house"`
 	} `json:"address"`
+	House struct {
+		Code string `json:"code"`
+	} `json:"house"`
 	Management struct {
 		ShortName string `json:"shortName"`
 		FullName  string `json:"fullName"`
@@ -61,6 +64,28 @@ type houseDTO struct {
 }
 
 type flexibleInt int
+
+type flexibleFloat float64
+
+func (v *flexibleFloat) UnmarshalJSON(data []byte) error {
+	raw := strings.TrimSpace(string(data))
+	if raw == "null" {
+		return nil
+	}
+	if strings.HasPrefix(raw, `"`) {
+		var text string
+		if err := json.Unmarshal(data, &text); err != nil {
+			return err
+		}
+		raw = strings.TrimSpace(text)
+	}
+	value, err := strconv.ParseFloat(raw, 64)
+	if err != nil {
+		return fmt.Errorf("expected number, got %s", string(data))
+	}
+	*v = flexibleFloat(value)
+	return nil
+}
 
 func (v *flexibleInt) UnmarshalJSON(data []byte) error {
 	raw := strings.TrimSpace(string(data))
@@ -90,6 +115,14 @@ func intPointer(v *flexibleInt) *int {
 	return &value
 }
 
+func floatPointer(v *flexibleFloat) *float64 {
+	if v == nil {
+		return nil
+	}
+	value := float64(*v)
+	return &value
+}
+
 func (c Client) FetchHouse(ctx context.Context, fiasGUID string) (domain.HouseProfile, error) {
 	lookupURL := c.BaseURL + "/homemanagement/api/rest/services/houses/public/houses/searchByFiasHouseCodeList/" + url.PathEscape(fiasGUID) + "?useReadOnlyDataSource=true"
 	var lookup struct {
@@ -100,7 +133,7 @@ func (c Client) FetchHouse(ctx context.Context, fiasGUID string) (domain.HousePr
 	}
 	var match *houseDTO
 	for i := range lookup.HouseList {
-		if strings.EqualFold(lookup.HouseList[i].Address.House.GUID, fiasGUID) {
+		if strings.EqualFold(fiasHouseGUID(lookup.HouseList[i]), fiasGUID) {
 			match = &lookup.HouseList[i]
 			break
 		}
@@ -136,11 +169,18 @@ func (c Client) FetchHouse(ctx context.Context, fiasGUID string) (domain.HousePr
 	manager := optional(strings.TrimSpace(strings.Join([]string{detail.ChiefLastName, detail.ChiefFirstName, detail.ChiefMiddleName}, " ")))
 	return domain.HouseProfile{
 		GISHouseGUID: detail.GUID, GISHouseType: detail.HouseType.Code,
-		CadastralNumber: detail.Cadastre, TotalArea: detail.Total, LivingArea: detail.Residential,
+		CadastralNumber: detail.Cadastre, TotalArea: floatPointer(detail.Total), LivingArea: floatPointer(detail.Residential),
 		Floors: intPointer(detail.Floors), Entrances: intPointer(detail.Entrances), Apartments: intPointer(detail.Apartments),
 		YearBuilt: intPointer(year), Organization: organization, Manager: manager, Contact: optional(detail.Management.Phone),
 		RawPayload: raw, FetchedAt: c.now().UTC(),
 	}, nil
+}
+
+func fiasHouseGUID(house houseDTO) string {
+	if house.Address.House.GUID != "" {
+		return house.Address.House.GUID
+	}
+	return house.House.Code
 }
 
 func (c Client) getJSON(ctx context.Context, endpoint string, target any) (json.RawMessage, error) {
