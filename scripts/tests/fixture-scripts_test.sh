@@ -64,6 +64,8 @@ require_text docker-compose.yml 'GAR_MODE:[[:space:]]*demo'
 require_text docker-compose.prod.yml 'GAR_MODE:[[:space:]]*demo'
 require_text docker-compose.prod.yml 'condition:[[:space:]]*service_completed_successfully'
 require_text deploy.sh 'pull postgres gar-init backend frontend'
+require_text deploy.sh '\.demo-reset-maintenance'
+require_text deploy.sh 'stop frontend backend gar-init'
 if grep -Eq 'GAR_ALLOW_DEMO_DATA' "$root/docker-compose.yml" "$root/docker-compose.prod.yml"; then
   echo "Compose still exposes GAR_ALLOW_DEMO_DATA" >&2
   exit 1
