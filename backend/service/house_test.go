@@ -64,6 +64,30 @@ func TestHouseProfileFreshCacheSkipsRegistry(t *testing.T) {
 	}
 }
 
+func TestApplyProfileCopiesStructuredAndLegacyFields(t *testing.T) {
+	updated := time.Date(2026, 9, 18, 12, 0, 0, 0, time.UTC)
+	total := 6720.8
+	shortName := `ГБУ "Жилищник района Арбат"`
+	profile := domain.HouseProfile{
+		Characteristics: domain.HouseCharacteristics{
+			HouseType: pointer("Многоквартирный"),
+			TotalArea: &total,
+		},
+		Management: domain.HouseManagement{ShortName: &shortName},
+		FetchedAt:  updated,
+	}
+
+	house := applyProfile(domain.House{}, profile)
+	if house.Characteristics.HouseType == nil || *house.Characteristics.HouseType != "Многоквартирный" {
+		t.Fatalf("characteristics not copied: %+v", house)
+	}
+	if house.TotalArea == nil || *house.TotalArea != total || house.Organization == nil || *house.Organization != shortName {
+		t.Fatalf("legacy fields not derived: %+v", house)
+	}
+}
+
+func pointer[T any](value T) *T { return &value }
+
 func TestHouseProfileMissingCacheFetchesAndSaves(t *testing.T) {
 	now := time.Date(2026, 9, 18, 12, 0, 0, 0, time.UTC)
 	profiles := &fakeProfiles{err: domain.ErrNotFound}
