@@ -60,6 +60,18 @@ require_text scripts/reset-production-demo.sh 'pg_restore.*--list'
 require_text scripts/reset-production-demo.sh 'RESET.*expected_database'
 require_text scripts/reset-production-demo.sh 'DROP SCHEMA public CASCADE'
 require_text scripts/reset-production-demo.sh 'ON_ERROR_STOP=1'
+require_text docker-compose.yml 'GAR_MODE:[[:space:]]*demo'
+require_text docker-compose.prod.yml 'GAR_MODE:[[:space:]]*demo'
+require_text docker-compose.prod.yml 'condition:[[:space:]]*service_completed_successfully'
+require_text deploy.sh 'pull postgres gar-init backend frontend'
+if grep -Eq 'GAR_ALLOW_DEMO_DATA' "$root/docker-compose.yml" "$root/docker-compose.prod.yml"; then
+  echo "Compose still exposes GAR_ALLOW_DEMO_DATA" >&2
+  exit 1
+fi
+if grep -A3 -E '^[[:space:]]*gar-init:' "$root/docker-compose.prod.yml" | grep -Eq 'profiles:'; then
+  echo "production gar-init is still hidden behind a profile" >&2
+  exit 1
+fi
 
 if grep -Eiq 'postgres://|password|POSTGRES_PASSWORD' "$root/gar-init/internal/db/fixtures/source.json" 2>/dev/null; then
   echo "fixture source manifest contains a credential-like value" >&2

@@ -1,8 +1,9 @@
 # GAR/FIAS database initializer
 
-`gar-init` — одноразовый Go-контейнер для потоковой загрузки XML-выгрузки
-ГАР/ФИАС в PostgreSQL. Он не является постоянным сервисом: после успешной
-загрузки и построения поискового индекса процесс завершается с кодом `0`.
+`gar-init` — одноразовый Go-контейнер для подготовки ГАР/ФИАС в PostgreSQL.
+В режиме `demo` он загружает проверенный fixture Арбата; в режиме `full`
+потоково читает XML. После успешной загрузки и построения поискового индекса
+процесс завершается с кодом `0`.
 
 ## Почему большие XML не переполняют память
 
@@ -25,6 +26,7 @@ POSTGRES_PORT=5432
 POSTGRES_DB=tvoydom
 POSTGRES_USER=tvoydom
 POSTGRES_PASSWORD=secret
+GAR_MODE=demo
 ```
 
 Дополнительные:
@@ -33,16 +35,13 @@ POSTGRES_PASSWORD=secret
 GAR_DATA_DIR=/data/gar
 GAR_BATCH_SIZE=10000
 GAR_LOG_EVERY=100000
-GAR_ALLOW_DEMO_DATA=false
 ```
 
-`GAR_ALLOW_DEMO_DATA=true` предназначен только для локальной разработки. Если
-каталог отсутствует или не содержит ни одного поддерживаемого XML, пустая GAR
-схема будет заполнена несколькими связанными адресами Москвы, домами и
-квартирами. Неполная или повреждённая реальная выгрузка никогда не заменяется
-демо-данными.
+`GAR_MODE=demo` не читает `GAR_DATA_DIR` и загружает встроенный канонический
+fixture. `GAR_MODE=full` никогда не подставляет демо-данные: отсутствующая,
+неполная или повреждённая выгрузка завершает процесс ошибкой.
 
-## Первый запуск на VM
+## Полный XML-импорт вручную
 
 В `.env` корня проекта:
 
@@ -51,12 +50,17 @@ POSTGRES_PASSWORD=надежный-пароль
 GAR_XML_PATH=/home/user1/gar/xml
 ```
 
-Проверить файлы и запустить job:
+Проверить файлы и запустить отдельный контейнер с явным `GAR_MODE=full` и
+read-only монтированием каталога в `/data/gar`. Обычные Compose-файлы этот
+режим не включают и XML не монтируют.
 
 ```bash
 find /home/user1/gar/xml -maxdepth 1 -type f -name '*.XML' | sort
-docker compose -f docker-compose.prod.yml pull gar-init
-docker compose -f docker-compose.prod.yml up gar-init
+docker run --rm --network max_backend \
+  -e GAR_MODE=full -e GAR_DATA_DIR=/data/gar \
+  -e POSTGRES_HOST=postgres -e POSTGRES_PORT=5432 \
+  -e POSTGRES_DB -e POSTGRES_USER -e POSTGRES_PASSWORD \
+  -v /home/user1/gar/xml:/data/gar:ro artshar/max-gar-init:latest
 ```
 
 Следить за прогрессом:
@@ -65,17 +69,10 @@ docker compose -f docker-compose.prod.yml up gar-init
 docker compose -f docker-compose.prod.yml logs -f gar-init
 ```
 
-После успешного импорта запустить приложение:
+Обычный production deploy использует встроенный demo-fixture:
 
 ```bash
-docker compose -f docker-compose.prod.yml up -d postgres backend frontend
-```
-
-В production `gar-init` подключён к профилю `init` и не запускается обычным
-deploy. Его нужно выполнить вручную только при первичной загрузке GAR:
-
-```bash
-docker compose -f docker-compose.prod.yml --profile init up gar-init
+./deploy.sh
 ```
 
 ## Проверка результата
@@ -150,11 +147,9 @@ docker compose -f docker-compose.prod.yml up gar-init
 
 ## Разработка и тесты
 
-Локальный `docker-compose.yml` монтирует `./gar-data`. Каталог можно оставить
-пустым — включённый dev-fallback создаст тестовые адреса:
+Локальный `docker-compose.yml` загружает тот же fixture Арбата, что production:
 
 ```bash
-docker compose up --build gar-init
 docker compose up --build -d
 ```
 

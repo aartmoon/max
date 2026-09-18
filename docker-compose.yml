@@ -25,12 +25,7 @@ services:
       POSTGRES_DB: ${POSTGRES_DB:-tvoydom}
       POSTGRES_USER: ${POSTGRES_USER:-tvoydom}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-tvoydom_demo}
-      GAR_DATA_DIR: /data/gar
-      GAR_BATCH_SIZE: ${GAR_BATCH_SIZE:-10000}
-      GAR_LOG_EVERY: ${GAR_LOG_EVERY:-100000}
-      GAR_ALLOW_DEMO_DATA: "true"
-    volumes:
-      - ${GAR_XML_PATH:-./gar-data}:/data/gar:ro
+      GAR_MODE: demo
     depends_on:
       postgres:
         condition: service_healthy

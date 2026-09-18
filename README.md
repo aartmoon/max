@@ -253,24 +253,47 @@ MAX отдельно указывает на необходимость дове
 
 ### Адреса ГАР/ФИАС
 
-Одноразовый сервис `gar-init` используется только для первичной загрузки GAR.
-На production он потоково импортирует XML из `${GAR_XML_PATH:-/home/user1/gar/xml}`.
-После успешной загрузки обычный deploy его не запускает. Локально
-можно оставить каталог `gar-data/` пустым: Compose явно разрешает небольшой
-набор связанных тестовых адресов, домов и квартир.
+Одноразовый сервис `gar-init` запускается перед backend и в локальном, и в
+production Compose. Оба окружения явно используют `GAR_MODE=demo`: сервис
+загружает один и тот же проверенный fixture московского Арбата, строит
+поисковый слой и при повторном запуске сразу завершается. XML всей России в
+этом режиме не читается и не монтируется.
 
 ```bash
-# Первый запуск production:
-docker compose -f docker-compose.prod.yml --profile init up gar-init
-
-# Обычный production deploy:
+# Production deploy:
 ./deploy.sh
 
 # Локальная разработка:
-docker compose up --build gar-init
 docker compose up --build -d
 docker compose logs -f gar-init
 ```
+
+`GAR_MODE=full` сохранён только для явного будущего импорта полного снимка.
+Для него нужно отдельно передать каталог XML и переопределить режим; обычные
+Compose-файлы этого никогда не делают.
+
+Перед заменой fixture production-строки выгружаются одной read-only
+repeatable-read транзакцией. Экспорт содержит канонические CSV, количество
+строк и SHA-256 по каждой GAR-таблице:
+
+```bash
+COMPOSE_FILE=docker-compose.prod.yml \
+  sh scripts/export-arbat-fixture.sh /safe/arbat-fixture 1,2,3,4,5,6,7,8,9,10
+sh scripts/verify-arbat-fixture.sh gar-init/internal/db/fixtures
+```
+
+Сброс production выполняется только отдельной защищённой командой:
+
+```bash
+COMPOSE_FILE=docker-compose.prod.yml \
+  sh scripts/reset-production-demo.sh tvoydom /safe/backups gar-init/internal/db/fixtures
+```
+
+Команда повторно сравнивает production с fixture, создаёт и проверяет полный
+`pg_dump`, требует точного ручного подтверждения и лишь затем пересоздаёт
+схему `public`. Архив, исходные CSV и манифесты необходимо хранить вне
+PostgreSQL volume. Для отката восстановите dump командой `pg_restore` в пустую
+базу и запустите обычный deploy.
 
 Форма новой заявки ищет дома через `GET /api/addresses/search`, затем при
 необходимости загружает квартиры выбранного дома. В заявку передаются GAR
