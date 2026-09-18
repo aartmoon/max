@@ -7,6 +7,13 @@ import (
 	"strings"
 )
 
+type Mode string
+
+const (
+	ModeDemo Mode = "demo"
+	ModeFull Mode = "full"
+)
+
 type Config struct {
 	PostgresHost     string
 	PostgresPort     int
@@ -16,7 +23,7 @@ type Config struct {
 	DataDir          string
 	BatchSize        int
 	LogEvery         int
-	AllowDemoData    bool
+	Mode             Mode
 }
 
 func Load(getenv func(string) string) (Config, error) {
@@ -36,6 +43,14 @@ func Load(getenv func(string) string) (Config, error) {
 			return Config{}, fmt.Errorf("%s is required", item.name)
 		}
 	}
+	switch raw := strings.TrimSpace(getenv("GAR_MODE")); Mode(raw) {
+	case ModeDemo, ModeFull:
+		cfg.Mode = Mode(raw)
+	case "":
+		return Config{}, fmt.Errorf("GAR_MODE is required")
+	default:
+		return Config{}, fmt.Errorf("GAR_MODE must be demo or full")
+	}
 	var err error
 	cfg.PostgresPort, err = positiveInt(getenv("POSTGRES_PORT"), 5432, "POSTGRES_PORT")
 	if err != nil {
@@ -52,12 +67,6 @@ func Load(getenv func(string) string) (Config, error) {
 	cfg.DataDir = strings.TrimSpace(getenv("GAR_DATA_DIR"))
 	if cfg.DataDir == "" {
 		cfg.DataDir = "/data/gar"
-	}
-	if raw := strings.TrimSpace(getenv("GAR_ALLOW_DEMO_DATA")); raw != "" {
-		cfg.AllowDemoData, err = strconv.ParseBool(raw)
-		if err != nil {
-			return Config{}, fmt.Errorf("GAR_ALLOW_DEMO_DATA: %w", err)
-		}
 	}
 	return cfg, nil
 }

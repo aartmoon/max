@@ -18,7 +18,7 @@ import (
 func TestRunStopsImmediatelyWhenInitialized(t *testing.T) {
 	store := &fakeStore{initialized: true, sourceType: "xml"}
 	var output bytes.Buffer
-	err := Run(context.Background(), config.Config{DataDir: filepath.Join(t.TempDir(), "missing")}, store, log.New(&output, "", 0), time.Now)
+	err := Run(context.Background(), config.Config{Mode: config.ModeFull, DataDir: filepath.Join(t.TempDir(), "missing")}, store, log.New(&output, "", 0), time.Now)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -30,25 +30,25 @@ func TestRunStopsImmediatelyWhenInitialized(t *testing.T) {
 	}
 }
 
-func TestRunSeedsDemoOnlyForEmptyInputWhenEnabled(t *testing.T) {
+func TestRunDemoModeSeedsWithoutInspectingInput(t *testing.T) {
 	store := &fakeStore{}
 	var output bytes.Buffer
 	now := time.Date(2026, 9, 17, 12, 0, 0, 0, time.UTC)
-	cfg := config.Config{DataDir: filepath.Join(t.TempDir(), "missing"), AllowDemoData: true}
+	cfg := config.Config{Mode: config.ModeDemo, DataDir: filepath.Join(t.TempDir(), "missing")}
 	if err := Run(context.Background(), cfg, store, log.New(&output, "", 0), func() time.Time { return now }); err != nil {
 		t.Fatal(err)
 	}
 	if !store.seeded || !store.finalized || store.finalSource != "demo" || !store.finalDate.Equal(now) {
 		t.Fatalf("unexpected demo flow: %+v", store)
 	}
-	if !strings.Contains(output.String(), "using demo address data") {
+	if !strings.Contains(output.String(), "demo address data initialized") {
 		t.Fatalf("unexpected log: %s", output.String())
 	}
 }
 
-func TestRunRejectsEmptyInputWhenDemoDisabled(t *testing.T) {
+func TestRunFullModeRejectsEmptyInput(t *testing.T) {
 	store := &fakeStore{}
-	err := Run(context.Background(), config.Config{DataDir: t.TempDir()}, store, log.New(&bytes.Buffer{}, "", 0), time.Now)
+	err := Run(context.Background(), config.Config{Mode: config.ModeFull, DataDir: t.TempDir()}, store, log.New(&bytes.Buffer{}, "", 0), time.Now)
 	if !errors.Is(err, ErrNoSupportedFiles) || store.seeded {
 		t.Fatalf("err=%v seeded=%v", err, store.seeded)
 	}
@@ -60,7 +60,7 @@ func TestRunNeverSeedsIncompleteSnapshot(t *testing.T) {
 		t.Fatal(err)
 	}
 	store := &fakeStore{}
-	err := Run(context.Background(), config.Config{DataDir: dir, AllowDemoData: true}, store, log.New(&bytes.Buffer{}, "", 0), time.Now)
+	err := Run(context.Background(), config.Config{Mode: config.ModeFull, DataDir: dir}, store, log.New(&bytes.Buffer{}, "", 0), time.Now)
 	if !errors.Is(err, ErrIncompleteSnapshot) || store.seeded {
 		t.Fatalf("err=%v seeded=%v", err, store.seeded)
 	}
@@ -80,7 +80,7 @@ func TestRunImportsManifestLogsProgressAndFinalizesXML(t *testing.T) {
 	}
 	store := &fakeStore{}
 	var output bytes.Buffer
-	cfg := config.Config{DataDir: dir, BatchSize: 1, LogEvery: 1}
+	cfg := config.Config{Mode: config.ModeFull, DataDir: dir, BatchSize: 1, LogEvery: 1}
 	if err := Run(context.Background(), cfg, store, log.New(&output, "", 0), time.Now); err != nil {
 		t.Fatal(err)
 	}

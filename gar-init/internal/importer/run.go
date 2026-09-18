@@ -2,7 +2,6 @@ package importer
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"log"
 	"os"
@@ -31,19 +30,19 @@ func Run(ctx context.Context, cfg config.Config, store Store, logger *log.Logger
 		logger.Printf("[GAR] GAR database already initialized")
 		return nil
 	}
+	if cfg.Mode == config.ModeDemo {
+		logger.Printf("[GAR] initializing demo address data")
+		if err := store.SeedDemo(ctx); err != nil {
+			return fmt.Errorf("seed GAR demo data: %w", err)
+		}
+		if err := store.Finalize(ctx, "demo", now().UTC()); err != nil {
+			return err
+		}
+		logger.Printf("[GAR] demo address data initialized")
+		return nil
+	}
 	files, err := Discover(cfg.DataDir)
 	if err != nil {
-		if errors.Is(err, ErrNoSupportedFiles) && cfg.AllowDemoData {
-			logger.Printf("[GAR] no XML files found; using demo address data")
-			if err := store.SeedDemo(ctx); err != nil {
-				return fmt.Errorf("seed GAR demo data: %w", err)
-			}
-			if err := store.Finalize(ctx, "demo", now().UTC()); err != nil {
-				return err
-			}
-			logger.Printf("[GAR] demo address data initialized")
-			return nil
-		}
 		return err
 	}
 	for _, source := range files {

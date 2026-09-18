@@ -16,6 +16,7 @@ func TestLoadAppliesGARDefaults(t *testing.T) {
 	values := map[string]string{
 		"POSTGRES_HOST": "postgres", "POSTGRES_PORT": "5432",
 		"POSTGRES_DB": "app", "POSTGRES_USER": "app", "POSTGRES_PASSWORD": "secret",
+		"GAR_MODE": "full",
 	}
 	got, err := Load(func(key string) string { return values[key] })
 	if err != nil {
@@ -24,8 +25,8 @@ func TestLoadAppliesGARDefaults(t *testing.T) {
 	if got.DataDir != "/data/gar" || got.BatchSize != 10000 || got.LogEvery != 100000 {
 		t.Fatalf("unexpected defaults: %+v", got)
 	}
-	if got.AllowDemoData {
-		t.Fatal("demo data must be opt-in")
+	if got.Mode != ModeFull {
+		t.Fatalf("mode=%q", got.Mode)
 	}
 }
 
@@ -33,13 +34,13 @@ func TestLoadParsesOverridesAndConnectionString(t *testing.T) {
 	values := map[string]string{
 		"POSTGRES_HOST": "db host", "POSTGRES_PORT": "5434", "POSTGRES_DB": "app/db",
 		"POSTGRES_USER": "app user", "POSTGRES_PASSWORD": "p@ss word", "GAR_DATA_DIR": "/fixtures",
-		"GAR_BATCH_SIZE": "17", "GAR_LOG_EVERY": "23", "GAR_ALLOW_DEMO_DATA": "true",
+		"GAR_BATCH_SIZE": "17", "GAR_LOG_EVERY": "23", "GAR_MODE": "demo",
 	}
 	got, err := Load(func(key string) string { return values[key] })
 	if err != nil {
 		t.Fatal(err)
 	}
-	if got.BatchSize != 17 || got.LogEvery != 23 || !got.AllowDemoData {
+	if got.BatchSize != 17 || got.LogEvery != 23 || got.Mode != ModeDemo {
 		t.Fatalf("unexpected overrides: %+v", got)
 	}
 	want := "postgres://app%20user:p%40ss%20word@db%20host:5434/app%2Fdb?sslmode=disable"
@@ -51,10 +52,10 @@ func TestLoadParsesOverridesAndConnectionString(t *testing.T) {
 func TestLoadRejectsInvalidNumericAndBooleanValues(t *testing.T) {
 	base := map[string]string{
 		"POSTGRES_HOST": "postgres", "POSTGRES_PORT": "5432", "POSTGRES_DB": "app",
-		"POSTGRES_USER": "app", "POSTGRES_PASSWORD": "secret",
+		"POSTGRES_USER": "app", "POSTGRES_PASSWORD": "secret", "GAR_MODE": "full",
 	}
 	for key, value := range map[string]string{
-		"POSTGRES_PORT": "x", "GAR_BATCH_SIZE": "0", "GAR_LOG_EVERY": "-1", "GAR_ALLOW_DEMO_DATA": "sometimes",
+		"POSTGRES_PORT": "x", "GAR_BATCH_SIZE": "0", "GAR_LOG_EVERY": "-1",
 	} {
 		t.Run(key, func(t *testing.T) {
 			values := mapsClone(base)
@@ -62,6 +63,43 @@ func TestLoadRejectsInvalidNumericAndBooleanValues(t *testing.T) {
 			_, err := Load(func(name string) string { return values[name] })
 			if err == nil || !strings.Contains(err.Error(), key) {
 				t.Fatalf("expected %s error, got %v", key, err)
+			}
+		})
+	}
+}
+
+func TestLoadParsesGARMode(t *testing.T) {
+	base := map[string]string{
+		"POSTGRES_HOST": "postgres", "POSTGRES_DB": "app",
+		"POSTGRES_USER": "app", "POSTGRES_PASSWORD": "secret",
+	}
+	for raw, want := range map[string]Mode{"demo": ModeDemo, "full": ModeFull} {
+		t.Run(raw, func(t *testing.T) {
+			values := mapsClone(base)
+			values["GAR_MODE"] = raw
+			got, err := Load(func(name string) string { return values[name] })
+			if err != nil {
+				t.Fatal(err)
+			}
+			if got.Mode != want {
+				t.Fatalf("want %q, got %q", want, got.Mode)
+			}
+		})
+	}
+}
+
+func TestLoadRejectsMissingOrInvalidGARMode(t *testing.T) {
+	base := map[string]string{
+		"POSTGRES_HOST": "postgres", "POSTGRES_DB": "app",
+		"POSTGRES_USER": "app", "POSTGRES_PASSWORD": "secret",
+	}
+	for name, raw := range map[string]string{"missing": "", "invalid": "automatic"} {
+		t.Run(name, func(t *testing.T) {
+			values := mapsClone(base)
+			values["GAR_MODE"] = raw
+			_, err := Load(func(key string) string { return values[key] })
+			if err == nil || !strings.Contains(err.Error(), "GAR_MODE") {
+				t.Fatalf("expected GAR_MODE error, got %v", err)
 			}
 		})
 	}
