@@ -29,6 +29,9 @@ var gisHouseProfilesMigration string
 //go:embed migrations/006_gar_search_dedup.sql
 var garSearchDedupMigration string
 
+//go:embed migrations/007_enriched_gis_house_profiles.sql
+var enrichedGISHouseProfilesMigration string
+
 func (p Postgres) Migrate(ctx context.Context) error {
 	tx, err := p.Pool.Begin(ctx)
 	if err != nil {
@@ -97,6 +100,17 @@ func (p Postgres) Migrate(ctx context.Context) error {
 			return err
 		}
 		if _, err = tx.Exec(ctx, `INSERT INTO schema_migrations VALUES(6)`); err != nil {
+			return err
+		}
+	}
+	if err = tx.QueryRow(ctx, `SELECT EXISTS(SELECT 1 FROM schema_migrations WHERE version=7)`).Scan(&exists); err != nil {
+		return err
+	}
+	if !exists {
+		if _, err = tx.Exec(ctx, enrichedGISHouseProfilesMigration); err != nil {
+			return err
+		}
+		if _, err = tx.Exec(ctx, `INSERT INTO schema_migrations VALUES(7)`); err != nil {
 			return err
 		}
 	}
