@@ -20,6 +20,7 @@ require_file scripts/export-arbat-fixture.sql
 require_file scripts/export-demo-database.sql
 require_file scripts/export-arbat-fixture.sh
 require_file scripts/verify-arbat-fixture.sh
+require_file scripts/reset-production-demo.sh
 
 require_text scripts/export-arbat-fixture.sql 'BEGIN ISOLATION LEVEL REPEATABLE READ READ ONLY'
 require_text scripts/export-arbat-fixture.sql 'Москв'
@@ -49,6 +50,16 @@ require_text scripts/export-arbat-fixture.sh 'ON_ERROR_STOP=1'
 require_text scripts/export-arbat-fixture.sh 'sha256sum|shasum -a 256'
 require_text scripts/export-arbat-fixture.sh 'source.json'
 require_text scripts/verify-arbat-fixture.sh 'manifest.sha256'
+require_text scripts/reset-production-demo.sh 'EXPECTED_DATABASE'
+require_text scripts/reset-production-demo.sh 'current_database\(\)'
+require_text scripts/reset-production-demo.sh 'stop.*frontend.*backend.*gar-init|stop.*backend.*gar-init.*frontend'
+require_text scripts/reset-production-demo.sh 'export-arbat-fixture.sh'
+require_text scripts/reset-production-demo.sh 'manifest.sha256'
+require_text scripts/reset-production-demo.sh 'pg_dump.*-Fc'
+require_text scripts/reset-production-demo.sh 'pg_restore.*--list'
+require_text scripts/reset-production-demo.sh 'RESET.*expected_database'
+require_text scripts/reset-production-demo.sh 'DROP SCHEMA public CASCADE'
+require_text scripts/reset-production-demo.sh 'ON_ERROR_STOP=1'
 
 if grep -Eiq 'postgres://|password|POSTGRES_PASSWORD' "$root/gar-init/internal/db/fixtures/source.json" 2>/dev/null; then
   echo "fixture source manifest contains a credential-like value" >&2
