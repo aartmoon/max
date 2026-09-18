@@ -92,8 +92,17 @@ func TestAddressDetailUsesNumericGARObjectID(t *testing.T) {
 func TestResolveHouseAcceptsObjectID(t *testing.T) {
 	now := time.Date(2026, 9, 18, 12, 0, 0, 0, time.UTC)
 	floors := 16
+	premises := 15
+	ogrn := "5147746267906"
+	organization := `ГБУ "Жилищник района Арбат"`
 	provider := &addressProviderStub{items: map[int64]domain.AddressInfo{10: {ObjectID: "10", ObjectKind: "house", FullAddress: "г. Москва, д. 1", IsActive: true}}}
-	houses := &houseRepoStub{house: domain.House{ID: "42", GARObjectID: "10", ObjectGUID: "10000000-0000-0000-0000-000000000010", Address: "г. Москва, д. 1", Floors: &floors, DataSource: "ГИС ЖКХ", DataUpdatedAt: &now, Stale: true}}
+	houses := &houseRepoStub{house: domain.House{
+		ID: "42", GARObjectID: "10", ObjectGUID: "10000000-0000-0000-0000-000000000010", Address: "г. Москва, д. 1",
+		Floors: &floors, Apartments: &premises, Organization: &organization, DataSource: "ГИС ЖКХ", DataUpdatedAt: &now, Stale: true,
+		Characteristics: domain.HouseCharacteristics{Floors: &floors, ResidentialPremises: &premises},
+		Management:      domain.HouseManagement{ShortName: &organization, OGRN: &ogrn},
+		DataSources:     []domain.HouseDataSource{{Name: "ГИС ЖКХ · карточка дома", Available: true, UpdatedAt: now, Stale: true}},
+	}}
 	h := Handler{Addresses: provider, Houses: service.HouseService{Addresses: provider, Repo: houses}}.Routes()
 	res := httptest.NewRecorder()
 	h.ServeHTTP(res, httptest.NewRequest(http.MethodPost, "/api/houses/resolve", bytes.NewBufferString(`{"objectId":"10"}`)))
@@ -109,6 +118,24 @@ func TestResolveHouseAcceptsObjectID(t *testing.T) {
 	}
 	if body["floors"] != float64(16) || body["dataSource"] != "ГИС ЖКХ" || body["dataUpdatedAt"] == nil || body["stale"] != true {
 		t.Fatalf("profile fields missing: %v", body)
+	}
+	characteristics, ok := body["characteristics"].(map[string]any)
+	if !ok || characteristics["residentialPremises"] != float64(15) {
+		t.Fatalf("structured characteristics missing: %v", body)
+	}
+	management, ok := body["management"].(map[string]any)
+	if !ok || management["ogrn"] != ogrn {
+		t.Fatalf("structured management missing: %v", body)
+	}
+	sources, ok := body["dataSources"].([]any)
+	if !ok || len(sources) != 1 {
+		t.Fatalf("sources missing: %v", body)
+	}
+	if body["apartments"] != float64(15) || body["organization"] != organization {
+		t.Fatalf("legacy fields changed: %v", body)
+	}
+	if _, exposed := body["rawPayload"]; exposed {
+		t.Fatal("raw payload must stay private")
 	}
 }
 
