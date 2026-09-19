@@ -73,7 +73,7 @@ export default function MyHouse() {
       </div>
     </> : house ? <>
       {house.stale && <p className="house-warning">ГИС ЖКХ сейчас недоступна — данные могут быть устаревшими.</p>}
-      <section className="house-banner"><span className="house-symbol" aria-hidden="true">⌂</span><div><small>{house.dataSource}</small><h2>{house.address}</h2><p>{text(characteristics?.yearBuilt ?? house.yearBuilt)} год постройки · {text(characteristics?.floors ?? house.floors)} этажей</p></div></section>
+      <section className="house-banner"><span className="house-symbol" aria-hidden="true">⌂</span><div><small>{house.dataSource}</small><h2>{house.address}</h2><p>{text(characteristics ? characteristics.yearBuilt : house.yearBuilt)} год постройки · {text(characteristics?.floors ?? house.floors)} этажей</p></div></section>
       <button className="text-button" onClick={() => choose(null)}>Выбрать другой дом</button>
       <section className="panel"><h2>Паспорт дома</h2><dl className="house-facts">
         <div><dt>Кадастровый номер</dt><dd>{text(house.cadastralNumber)}</dd></div>
@@ -82,7 +82,7 @@ export default function MyHouse() {
         <div><dt>Состояние</dt><dd>{text(characteristics?.condition)}</dd></div>
         <div><dt>Стадия жизненного цикла</dt><dd>{text(characteristics?.lifecycleStage)}</dd></div>
         <div><dt>Серия / проект</dt><dd>{text(characteristics?.projectSeries)}</dd></div>
-        <div><dt>Год постройки</dt><dd>{text(characteristics?.yearBuilt ?? house.yearBuilt)}</dd></div>
+        <div><dt>Год постройки</dt><dd>{text(characteristics ? characteristics.yearBuilt : house.yearBuilt)}</dd></div>
         <div><dt>Год ввода в эксплуатацию</dt><dd>{text(characteristics?.operationYear)}</dd></div>
         <div><dt>Год реконструкции</dt><dd>{text(characteristics?.reconstructionYear)}</dd></div>
         <div><dt>Общая площадь</dt><dd>{area(characteristics?.totalArea ?? house.totalArea)}</dd></div>

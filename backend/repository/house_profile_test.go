@@ -3,6 +3,8 @@ package repository
 import (
 	"strings"
 	"testing"
+
+	"tvoydom/domain"
 )
 
 func TestHouseProfileMigration(t *testing.T) {
@@ -74,5 +76,17 @@ func TestEnrichedHouseProfileMigrationAndQueries(t *testing.T) {
 	}
 	if !strings.Contains(enrichedGISHouseProfilesMigration, "ADD COLUMN IF NOT EXISTS") {
 		t.Fatal("migration must be safe to retry")
+	}
+}
+
+func TestNormalizeLoadedProfileKeepsOperationYearSeparate(t *testing.T) {
+	year := 1980
+	profile := domain.HouseProfile{
+		YearBuilt:       &year,
+		Characteristics: domain.HouseCharacteristics{OperationYear: &year},
+	}
+	normalizeLoadedProfile(&profile)
+	if profile.Characteristics.YearBuilt != nil {
+		t.Fatalf("construction year must stay unpublished: %+v", profile.Characteristics)
 	}
 }

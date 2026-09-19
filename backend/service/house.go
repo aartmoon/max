@@ -127,7 +127,7 @@ func applyProfile(house domain.House, profile domain.HouseProfile) domain.House 
 	if characteristics.ResidentialPremises == nil {
 		characteristics.ResidentialPremises = profile.Apartments
 	}
-	if characteristics.YearBuilt == nil {
+	if characteristics.YearBuilt == nil && characteristics.OperationYear == nil {
 		characteristics.YearBuilt = profile.YearBuilt
 	}
 	management := profile.Management
@@ -160,7 +160,7 @@ func applyProfile(house domain.House, profile domain.HouseProfile) domain.House 
 	house.Floors = characteristics.Floors
 	house.Entrances = characteristics.Entrances
 	house.Apartments = characteristics.ResidentialPremises
-	house.YearBuilt = characteristics.YearBuilt
+	house.YearBuilt = firstIntPointer(characteristics.YearBuilt, profile.YearBuilt)
 	house.Organization = firstString(management.ShortName, management.FullName)
 	house.Manager = management.Chief
 	house.Contact = management.Phone
@@ -173,6 +173,15 @@ func applyProfile(house domain.House, profile domain.HouseProfile) domain.House 
 func firstString(values ...*string) *string {
 	for _, value := range values {
 		if value != nil && strings.TrimSpace(*value) != "" {
+			return value
+		}
+	}
+	return nil
+}
+
+func firstIntPointer(values ...*int) *int {
+	for _, value := range values {
+		if value != nil {
 			return value
 		}
 	}

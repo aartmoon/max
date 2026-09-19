@@ -119,6 +119,8 @@ test("partial profile remains usable when the square summary is unavailable", as
       ...profile,
       characteristics: {
         ...profile.characteristics,
+        yearBuilt: null,
+        operationYear: 1870,
         residentialPremises: null,
         nonResidentialPremises: null,
         ownersOrShares: null,
@@ -133,6 +135,8 @@ test("partial profile remains usable when the square summary is unavailable", as
   await page.addInitScript((objectId) => localStorage.setItem("tvoy-dom:selected-house-object-id", objectId), address.objectId);
   await page.goto("/max/house");
   await expect(page.getByRole("heading", { name: "Паспорт дома" })).toBeVisible();
+  await expect(page.locator(".house-facts div").filter({ has: page.getByText("Год постройки", { exact: true }) }).locator("dd")).toHaveText("Не опубликовано в ГИС ЖКХ");
+  await expect(page.locator(".house-facts div").filter({ has: page.getByText("Год ввода в эксплуатацию", { exact: true }) }).locator("dd")).toHaveText("1870");
   await expect(page.getByText("Не опубликовано в ГИС ЖКХ").first()).toBeVisible();
   await expect(page.getByText("недоступен при обновлении")).toBeVisible();
   await expect(page.getByRole("link", { name: "javascript:alert(1)" })).toHaveCount(0);

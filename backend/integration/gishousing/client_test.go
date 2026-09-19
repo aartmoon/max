@@ -116,6 +116,19 @@ func TestFloorAndPremiseFallbacks(t *testing.T) {
 	}
 }
 
+func TestOperationYearDoesNotBecomeConstructionYear(t *testing.T) {
+	operationYear := flexibleInt(1980)
+	detail := houseDetailDTO{houseCommonDTO: houseCommonDTO{OperationYear: &operationYear}}
+	profile := profileFromDetail(detail, nil, time.Date(2026, 9, 18, 12, 0, 0, 0, time.UTC))
+	syncLegacyFields(&profile)
+	if profile.Characteristics.YearBuilt != nil {
+		t.Fatalf("construction year must remain unpublished: %+v", profile.Characteristics)
+	}
+	if profile.Apartments != nil || profile.YearBuilt == nil || *profile.YearBuilt != 1980 {
+		t.Fatalf("legacy operation-year fallback changed: %+v", profile)
+	}
+}
+
 func TestSquareSummaryFailuresAreOptional(t *testing.T) {
 	cases := map[string]func(http.ResponseWriter){
 		"status":    func(w http.ResponseWriter) { http.Error(w, "bad", http.StatusBadGateway) },

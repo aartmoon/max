@@ -86,6 +86,21 @@ func TestApplyProfileCopiesStructuredAndLegacyFields(t *testing.T) {
 	}
 }
 
+func TestApplyProfileKeepsOperationYearSeparateFromConstructionYear(t *testing.T) {
+	year := 1980
+	profile := domain.HouseProfile{
+		YearBuilt:       &year,
+		Characteristics: domain.HouseCharacteristics{OperationYear: &year},
+	}
+	house := applyProfile(domain.House{}, profile)
+	if house.Characteristics.YearBuilt != nil {
+		t.Fatalf("unpublished construction year was invented: %+v", house.Characteristics)
+	}
+	if house.YearBuilt == nil || *house.YearBuilt != year {
+		t.Fatalf("legacy fallback was lost: %+v", house)
+	}
+}
+
 func pointer[T any](value T) *T { return &value }
 
 func TestHouseProfileMissingCacheFetchesAndSaves(t *testing.T) {

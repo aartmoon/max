@@ -112,7 +112,9 @@ func normalizeLoadedProfile(profile *domain.HouseProfile) {
 	profile.Characteristics.Floors = intFallback(profile.Characteristics.Floors, profile.Floors)
 	profile.Characteristics.Entrances = intFallback(profile.Characteristics.Entrances, profile.Entrances)
 	profile.Characteristics.ResidentialPremises = intFallback(profile.Characteristics.ResidentialPremises, profile.Apartments)
-	profile.Characteristics.YearBuilt = intFallback(profile.Characteristics.YearBuilt, profile.YearBuilt)
+	if profile.Characteristics.OperationYear == nil {
+		profile.Characteristics.YearBuilt = intFallback(profile.Characteristics.YearBuilt, profile.YearBuilt)
+	}
 	if profile.Management.ShortName == nil && profile.Management.FullName == nil {
 		profile.Management.ShortName = profile.Organization
 	}
@@ -131,7 +133,7 @@ func normalizeProfileForSave(profile *domain.HouseProfile) {
 	profile.Floors = profile.Characteristics.Floors
 	profile.Entrances = profile.Characteristics.Entrances
 	profile.Apartments = profile.Characteristics.ResidentialPremises
-	profile.YearBuilt = profile.Characteristics.YearBuilt
+	profile.YearBuilt = intFallback(profile.Characteristics.YearBuilt, profile.Characteristics.OperationYear)
 	profile.Organization = stringFallback(profile.Management.ShortName, profile.Management.FullName)
 	profile.Manager = profile.Management.Chief
 	profile.Contact = profile.Management.Phone

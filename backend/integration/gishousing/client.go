@@ -326,7 +326,6 @@ func first(values ...string) string {
 }
 
 func profileFromDetail(detail houseDetailDTO, raw json.RawMessage, fetchedAt time.Time) domain.HouseProfile {
-	year := firstInt(detail.BuildingYear, detail.OperationYear)
 	characteristics := domain.HouseCharacteristics{
 		HouseTypeCode:        optional(detail.HouseType.Code),
 		HouseType:            optional(detail.HouseType.Name),
@@ -334,7 +333,7 @@ func profileFromDetail(detail houseDetailDTO, raw json.RawMessage, fetchedAt tim
 		ProjectSeries:        optional(detail.PlanSeries),
 		Condition:            optional(detail.HouseCondition.Name),
 		LifecycleStage:       optional(detail.LifecycleStage.Name),
-		YearBuilt:            intPointer(year),
+		YearBuilt:            intPointer(detail.BuildingYear),
 		OperationYear:        intPointer(detail.OperationYear),
 		ReconstructionYear:   intPointer(detail.ReconstructionYear),
 		DeteriorationPercent: floatPointer(detail.Deterioration),
@@ -397,6 +396,9 @@ func syncLegacyFields(profile *domain.HouseProfile) {
 	profile.Entrances = profile.Characteristics.Entrances
 	profile.Apartments = profile.Characteristics.ResidentialPremises
 	profile.YearBuilt = profile.Characteristics.YearBuilt
+	if profile.YearBuilt == nil {
+		profile.YearBuilt = profile.Characteristics.OperationYear
+	}
 	profile.Organization = firstPointer(profile.Management.ShortName, profile.Management.FullName)
 	profile.Manager = profile.Management.Chief
 	profile.Contact = profile.Management.Phone
