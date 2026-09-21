@@ -168,6 +168,9 @@ func houseResponse(h domain.House) map[string]any {
 		"dataSource":      h.DataSource,
 		"dataUpdatedAt":   h.DataUpdatedAt,
 		"stale":           h.Stale,
+		"characteristics": h.Characteristics,
+		"management":      h.Management,
+		"dataSources":     h.DataSources,
 	}
 }
 

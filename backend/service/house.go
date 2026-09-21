@@ -111,20 +111,81 @@ func (s HouseService) resolveProfile(ctx context.Context, house domain.House) (d
 }
 
 func applyProfile(house domain.House, profile domain.HouseProfile) domain.House {
+	characteristics := profile.Characteristics
+	if characteristics.TotalArea == nil {
+		characteristics.TotalArea = profile.TotalArea
+	}
+	if characteristics.LivingArea == nil {
+		characteristics.LivingArea = profile.LivingArea
+	}
+	if characteristics.Floors == nil {
+		characteristics.Floors = profile.Floors
+	}
+	if characteristics.Entrances == nil {
+		characteristics.Entrances = profile.Entrances
+	}
+	if characteristics.ResidentialPremises == nil {
+		characteristics.ResidentialPremises = profile.Apartments
+	}
+	if characteristics.YearBuilt == nil && characteristics.OperationYear == nil {
+		characteristics.YearBuilt = profile.YearBuilt
+	}
+	management := profile.Management
+	if management.ShortName == nil && management.FullName == nil {
+		management.ShortName = profile.Organization
+	}
+	if management.Chief == nil {
+		management.Chief = profile.Manager
+	}
+	if management.Phone == nil {
+		management.Phone = profile.Contact
+	}
+	sources := append([]domain.HouseDataSource(nil), profile.DataSources...)
+	if len(sources) == 0 && !profile.FetchedAt.IsZero() {
+		sources = []domain.HouseDataSource{
+			{Name: "ГИС ЖКХ · карточка дома", Available: true},
+			{Name: "ГИС ЖКХ · сводка помещений", Available: profile.SquareSummaryAvailable},
+		}
+	}
+	for index := range sources {
+		sources[index].UpdatedAt = profile.FetchedAt
+		sources[index].Stale = profile.Stale
+	}
+	house.Characteristics = characteristics
+	house.Management = management
+	house.DataSources = sources
 	house.CadastralNumber = profile.CadastralNumber
-	house.TotalArea = profile.TotalArea
-	house.LivingArea = profile.LivingArea
-	house.Floors = profile.Floors
-	house.Entrances = profile.Entrances
-	house.Apartments = profile.Apartments
-	house.YearBuilt = profile.YearBuilt
-	house.Organization = profile.Organization
-	house.Manager = profile.Manager
-	house.Contact = profile.Contact
+	house.TotalArea = characteristics.TotalArea
+	house.LivingArea = characteristics.LivingArea
+	house.Floors = characteristics.Floors
+	house.Entrances = characteristics.Entrances
+	house.Apartments = characteristics.ResidentialPremises
+	house.YearBuilt = firstIntPointer(characteristics.YearBuilt, profile.YearBuilt)
+	house.Organization = firstString(management.ShortName, management.FullName)
+	house.Manager = management.Chief
+	house.Contact = management.Phone
 	house.DataSource = "ГИС ЖКХ"
 	house.DataUpdatedAt = &profile.FetchedAt
 	house.Stale = profile.Stale
 	return house
+}
+
+func firstString(values ...*string) *string {
+	for _, value := range values {
+		if value != nil && strings.TrimSpace(*value) != "" {
+			return value
+		}
+	}
+	return nil
+}
+
+func firstIntPointer(values ...*int) *int {
+	for _, value := range values {
+		if value != nil {
+			return value
+		}
+	}
+	return nil
 }
 
 func parseObjectID(raw string) (int64, error) {

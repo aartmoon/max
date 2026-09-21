@@ -1,11 +1,11 @@
 import { test, expect } from "@playwright/test";
 const demoHouse = {
-  objectId: "2000",
-  objectGuid: "20000000-0000-0000-0000-000000002000",
-  parentObjectId: "1001",
+  objectId: "67020241",
+  objectGuid: "151b9095-9f1d-4ab5-afc6-db971eed9d49",
+  parentObjectId: "1447085",
   objectKind: "house",
-  displayName: "д. 1",
-  fullAddress: "г. Москва, ул. Тверская, д. 1",
+  displayName: "д. 4, стр. 1",
+  fullAddress: "г. Москва, ул. Арбат, д. 4, стр. 1",
 };
 test.beforeEach(async ({ page }) => {
   await page.route("https://st.max.ru/js/max-web-app.js", (route) => route.abort());
@@ -16,7 +16,7 @@ test.beforeEach(async ({ page }) => {
 
 async function selectDemoHouse(page: import("@playwright/test").Page) {
   const input = page.getByRole("combobox", { name: "Адрес дома" });
-  await input.fill("Тверская");
+  await input.fill("Арбат");
   await page.getByRole("option", { name: demoHouse.fullAddress }).click();
 }
 test("resident creates an issue with a photo and follows status history", async ({
@@ -125,9 +125,7 @@ test("emergency request is processed by UK and its comments reach the resident",
   await page.getByLabel("Тип заявки").selectOption("EMERGENCY");
   await page.getByRole("combobox", { name: "Организация", exact: true }).selectOption("1");
   await page.getByRole("combobox", { name: "Статус", exact: true }).selectOption("CREATED");
-  await expect(page.locator(".request-card").first()).toContainText(
-    description,
-  );
+  await expect(page.getByRole("heading", { name: description, exact: true })).toBeVisible();
   await page.screenshot({
     path: "test-results/admin-mobile.png",
     fullPage: true,
@@ -152,6 +150,31 @@ test("emergency request is processed by UK and its comments reach the resident",
 test("house profile displays data and works at narrow and desktop widths", async ({
   page,
 }) => {
+  await page.route("**/max/api/houses/resolve", (route) => route.fulfill({
+    contentType: "application/json",
+    body: JSON.stringify({
+      id: "1", garObjectId: demoHouse.objectId, objectGuid: demoHouse.objectGuid, address: demoHouse.fullAddress,
+      cadastralNumber: "77:01:0001046:1013", totalArea: 12480, livingArea: 9360, floors: 9, entrances: 4,
+      apartments: 144, yearBuilt: 1987, organization: "УК «Тестовая»", manager: "Иван Иванов",
+      contact: "+7 000 000-00-00", dataSource: "ГИС ЖКХ", dataUpdatedAt: "2026-09-18T12:00:00Z", stale: false,
+      characteristics: {
+        houseTypeCode: "1", houseType: "Многоквартирный", status: "APPROVED", projectSeries: null,
+        condition: null, lifecycleStage: null, yearBuilt: 1987, operationYear: null, reconstructionYear: null,
+        deteriorationPercent: null, deteriorationDate: null, wallMaterial: null, energyEfficiency: null,
+        totalArea: 12480, livingArea: 9360, nonResidentialArea: null, residentialPremises: 144,
+        residentialPremisesArea: null, residentialPremisesWithRealty: null, residentialPremisesWithRealtyArea: null,
+        nonResidentialPremises: null, nonResidentialPremisesArea: null, nonResidentialPremisesNotCommon: null,
+        nonResidentialPremisesNotCommonArea: null, floors: 9, entrances: 4, ownersOrShares: null,
+      },
+      management: {
+        method: null, organizationGuid: null, shortName: "УК «Тестовая»", fullName: null, address: null,
+        phone: "+7 000 000-00-00", website: null, organizationType: null, registryOrganizationGuid: null,
+        inn: null, ogrn: null, chief: "Иван Иванов", contractStart: null, contractEnd: null,
+      },
+      dataSources: [{ name: "ГИС ЖКХ · карточка дома", available: true, updatedAt: "2026-09-18T12:00:00Z", stale: false }],
+    }),
+  }));
+  await page.addInitScript((objectId) => localStorage.setItem("tvoy-dom:selected-house-object-id", objectId), demoHouse.objectId);
   await page.goto("/max/house");
   await expect(
     page.getByRole("heading", { name: "Мой дом", exact: true }),

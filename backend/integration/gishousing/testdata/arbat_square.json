@@ -1,0 +1,15 @@
+{
+  "houseGuid": "105a84e6-01b5-4bbb-a26d-e5ec59bee321",
+  "totalSquare": "6720.8",
+  "residentialSquare": "2405.3",
+  "residentialPremiseCount": 15,
+  "residentialPremiseSquare": "2405.3",
+  "residentialPremiseWithRelatedRealtyCount": 15,
+  "residentialPremiseWithRelatedRealtySquare": "2405.3",
+  "nonresidentialSquare": "4023.6",
+  "nonresidentialPremiseCount": 31,
+  "nonresidentialPremiseSquare": "4176.4",
+  "nonresidentialPremiseNotCommonCount": 29,
+  "nonresidentialPremiseNotCommonSquare": "4023.6",
+  "shareOwnersNumber": 61
+}

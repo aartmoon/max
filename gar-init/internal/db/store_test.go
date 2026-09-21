@@ -102,6 +102,19 @@ func TestSeedDemoAndFinalizeBuildSearchEntries(t *testing.T) {
 	if !strings.Contains(address, "Москва") || !strings.Contains(address, "кв.") {
 		t.Fatalf("unexpected full address %q", address)
 	}
+	var arbat string
+	if err := store.pool.QueryRow(context.Background(), `
+		SELECT full_address FROM gar_search_addresses
+		WHERE object_kind='house' AND object_id=67020241
+	`).Scan(&arbat); err != nil {
+		t.Fatal(err)
+	}
+	if arbat != "г. Москва, ул. Арбат, д. 4, стр. 1" {
+		t.Fatalf("unexpected Arbat address %q", arbat)
+	}
+	if strings.Count(arbat, "стр. 1") != 1 {
+		t.Fatalf("duplicate structure suffix in %q", arbat)
+	}
 	for _, table := range []string{
 		"gar_address_objects", "gar_addr_object_params",
 		"gar_adm_hierarchy", "gar_mun_hierarchy", "gar_houses", "gar_house_params",
@@ -163,6 +176,19 @@ func TestLegacyGARVersionConstraintsAreRemoved(t *testing.T) {
 func TestSearchSQLKeepsOneEntryPerCanonicalAddress(t *testing.T) {
 	if !strings.Contains(searchSQL, "ROW_NUMBER() OVER") || !strings.Contains(searchSQL, "PARTITION BY object_kind, lower(full_address)") {
 		t.Fatal("search SQL must rank duplicate canonical addresses before inserting them")
+	}
+}
+
+func TestSearchSQLIncludesVerifiedStructureAddition(t *testing.T) {
+	for _, fragment := range []string{
+		"add_type1 = 2",
+		"'стр. ' || add_num1",
+		"add_num1 IS DISTINCT FROM struc_num",
+		"add_num2 IS DISTINCT FROM add_num1",
+	} {
+		if !strings.Contains(searchSQL, fragment) {
+			t.Errorf("search SQL missing %q", fragment)
+		}
 	}
 }
 

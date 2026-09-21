@@ -14,9 +14,16 @@ node_candidates AS (
     WHERE is_active IS TRUE AND is_actual IS TRUE AND object_id IS NOT NULL
     UNION ALL
     SELECT object_id, object_guid, 'house',
-           trim(concat_ws(' ', 'д.', house_num,
+           concat_ws(', ', trim(concat_ws(' ', 'д.', house_num)),
                 CASE WHEN build_num IS NOT NULL AND build_num <> '' THEN 'корп. ' || build_num END,
-                CASE WHEN struc_num IS NOT NULL AND struc_num <> '' THEN 'стр. ' || struc_num END)),
+                CASE WHEN struc_num IS NOT NULL AND struc_num <> '' THEN 'стр. ' || struc_num END,
+                CASE WHEN add_type1 = 2 AND nullif(add_num1, '') IS NOT NULL
+                           AND add_num1 IS DISTINCT FROM struc_num
+                     THEN 'стр. ' || add_num1 END,
+                CASE WHEN add_type2 = 2 AND nullif(add_num2, '') IS NOT NULL
+                           AND add_num2 IS DISTINCT FROM struc_num
+                           AND add_num2 IS DISTINCT FROM add_num1
+                     THEN 'стр. ' || add_num2 END),
            10, true
     FROM gar_houses
     WHERE is_active IS TRUE AND is_actual IS TRUE AND object_id IS NOT NULL

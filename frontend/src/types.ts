@@ -87,7 +87,64 @@ export interface House {
   manager: string | null;
   contact: string | null;
   dataSource: string;
-  dataUpdatedAt: string;
+  dataUpdatedAt: string | null;
+  stale: boolean;
+  characteristics?: HouseCharacteristics;
+  management?: HouseManagement;
+  dataSources?: HouseDataSource[];
+}
+
+export interface HouseCharacteristics {
+  houseTypeCode: string | null;
+  houseType: string | null;
+  status: string | null;
+  projectSeries: string | null;
+  condition: string | null;
+  lifecycleStage: string | null;
+  yearBuilt: number | null;
+  operationYear: number | null;
+  reconstructionYear: number | null;
+  deteriorationPercent: number | null;
+  deteriorationDate: string | null;
+  wallMaterial: string | null;
+  energyEfficiency: string | null;
+  totalArea: number | null;
+  livingArea: number | null;
+  nonResidentialArea: number | null;
+  residentialPremises: number | null;
+  residentialPremisesArea: number | null;
+  residentialPremisesWithRealty: number | null;
+  residentialPremisesWithRealtyArea: number | null;
+  nonResidentialPremises: number | null;
+  nonResidentialPremisesArea: number | null;
+  nonResidentialPremisesNotCommon: number | null;
+  nonResidentialPremisesNotCommonArea: number | null;
+  floors: number | null;
+  entrances: number | null;
+  ownersOrShares: number | null;
+}
+
+export interface HouseManagement {
+  method: string | null;
+  organizationGuid: string | null;
+  shortName: string | null;
+  fullName: string | null;
+  address: string | null;
+  phone: string | null;
+  website: string | null;
+  organizationType: string | null;
+  registryOrganizationGuid: string | null;
+  inn: string | null;
+  ogrn: string | null;
+  chief: string | null;
+  contractStart: string | null;
+  contractEnd: string | null;
+}
+
+export interface HouseDataSource {
+  name: string;
+  available: boolean;
+  updatedAt: string;
   stale: boolean;
 }
 export interface Organization {
