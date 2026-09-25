@@ -14,6 +14,7 @@ type AdminRepository interface {
 type AdminService struct {
 	Repo          AdminRepository
 	Notifications NotificationService
+	Mailer        Mailer
 }
 
 func ValidateAdminTransition(from, to string) error {
@@ -45,6 +46,7 @@ func (s AdminService) SetStatus(ctx context.Context, id, status, comment string)
 	})
 	if err == nil {
 		s.Notifications.Notify(ctx, r)
+		notifyRequestOwnerStatusChanged(ctx, s.Repo, s.Mailer, r, comment)
 	}
 	return r, err
 }

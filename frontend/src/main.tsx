@@ -16,10 +16,13 @@ import NewRequest from "./pages/NewRequest";
 import Requests from "./pages/Requests";
 import RequestDetail from "./pages/RequestDetail";
 import { MaxIntegration } from "./integration/MaxIntegration";
+import { AuthProvider, useAuth } from "./auth";
 import { appBasename } from "./paths";
 import "./styles.css";
 function App() {
   const location = useLocation();
+  const { user, logout } = useAuth();
+  const canAdmin = user.roles?.some((role) => role === "manager" || role === "admin");
   useEffect(() => {
     window.scrollTo(0, 0);
   }, [location.pathname]);
@@ -29,12 +32,19 @@ function App() {
         <Link className="brand" to="/">
           <span>⌂</span> Твой дом<span className="brand-dot">.</span>
         </Link>
-        <Link
-          className="demo-label"
-          to={location.pathname.startsWith("/admin") ? "/" : "/admin"}
-        >
-          {location.pathname.startsWith("/admin") ? "ЖИТЕЛЮ" : "КАБИНЕТ УК"}
-        </Link>
+        <div className="header-actions">
+          {canAdmin && (
+            <Link
+              className="demo-label"
+              to={location.pathname.startsWith("/admin") ? "/" : "/admin"}
+            >
+              {location.pathname.startsWith("/admin") ? "ЖИТЕЛЮ" : "КАБИНЕТ УК"}
+            </Link>
+          )}
+          <button className="logout-button" type="button" onClick={logout}>
+            Выйти
+          </button>
+        </div>
       </header>
       <main>
         <Routes>
@@ -79,7 +89,9 @@ ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode>
     <BrowserRouter basename={appBasename}>
       <MaxIntegration>
-        <App />
+        <AuthProvider>
+          <App />
+        </AuthProvider>
       </MaxIntegration>
     </BrowserRouter>
   </React.StrictMode>,

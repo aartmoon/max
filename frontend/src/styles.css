@@ -48,6 +48,30 @@ header {
   align-items: center;
   border-bottom: 1px solid #e1e7df;
 }
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.logout-button {
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+  font: inherit;
+  cursor: pointer;
+}
+.logout-button:hover {
+  color: var(--text);
+}
+.auth-page {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+}
+.auth-panel {
+  width: min(440px, 100%);
+}
 .brand {
   font-size: 24px;
   font-weight: 750;

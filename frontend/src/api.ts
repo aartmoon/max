@@ -6,6 +6,8 @@ import type {
   Status,
   AddressKind,
   AddressSuggestion,
+  CurrentUser,
+  UserApartment,
 } from "./types";
 import { apiPath } from "./paths";
 async function call<T>(path: string, init?: RequestInit): Promise<T> {
@@ -13,6 +15,7 @@ async function call<T>(path: string, init?: RequestInit): Promise<T> {
   try {
     response = await fetch(apiPath(path), {
       ...init,
+      credentials: "same-origin",
       signal: init?.signal ?? AbortSignal.timeout(20000),
     });
   } catch (e) {
@@ -43,6 +46,41 @@ export const api = {
       { method: "POST" },
     ),
   config: () => call<{ mockStatusEnabled: boolean }>("/config"),
+};
+export const authApi = {
+  me: (signal?: AbortSignal) => call<CurrentUser>("/me", { signal }),
+  requestCode: (email: string) =>
+    call<{ ok: boolean }>("/auth/request-code", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email }),
+    }),
+  verifyCode: (email: string, code: string) =>
+    call<CurrentUser>("/auth/verify-code", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email, code }),
+    }),
+  logout: () => call<{ ok: boolean }>("/auth/logout", { method: "POST" }),
+};
+export const apartmentApi = {
+  list: (signal?: AbortSignal) =>
+    call<UserApartment[]>("/me/apartments", { signal }),
+  create: (body: {
+    houseObjectId: string;
+    apartmentObjectId?: string;
+    label?: string;
+    isDefault?: boolean;
+  }) =>
+    call<UserApartment>("/me/apartments", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    }),
+  setDefault: (id: string) =>
+    call<UserApartment>(`/me/apartments/${id}/default`, { method: "PATCH" }),
+  remove: (id: string) =>
+    call<{ ok: boolean }>(`/me/apartments/${id}`, { method: "DELETE" }),
 };
 
 export const houseApi = {

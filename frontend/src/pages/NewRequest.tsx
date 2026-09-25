@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, type FormEvent } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { useMaxBridge } from "../integration/MaxIntegration";
 import { api } from "../api";
+import { apartmentApi } from "../api";
 import { kinds, type Kind } from "../types";
 import { Back, ErrorMessage } from "../components/UI";
 import { AddressAutocomplete } from "../components/AddressAutocomplete";
@@ -26,6 +27,34 @@ export default function NewRequest() {
     bridge.closingConfirmation(dirty);
     return () => bridge.closingConfirmation(false);
   }, [bridge, dirty]);
+  useEffect(() => {
+    const controller = new AbortController();
+    apartmentApi
+      .list(controller.signal)
+      .then((items) => {
+        const current = items.find((item) => item.isDefault) ?? items[0];
+        if (!current || house) return;
+        setHouse({
+          objectId: current.houseObjectId,
+          objectGuid: current.houseObjectGuid,
+          objectKind: "house",
+          displayName: current.address,
+          fullAddress: current.address,
+        });
+        if (current.apartmentObjectId) {
+          setApartment({
+            objectId: current.apartmentObjectId,
+            objectGuid: current.apartmentObjectGuid,
+            parentObjectId: current.houseObjectId,
+            objectKind: "apartment",
+            displayName: current.label || current.address,
+            fullAddress: current.address,
+          });
+        }
+      })
+      .catch(() => {});
+    return () => controller.abort();
+  }, []);
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (busy) return;

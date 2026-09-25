@@ -17,6 +17,7 @@ import (
 
 type Handler struct {
 	Service           service.RequestService
+	Auth              service.AuthService
 	Houses            service.HouseService
 	Addresses         service.AddressProvider
 	Repo              repository.Postgres
@@ -33,7 +34,28 @@ func (h Handler) Routes() http.Handler {
 		}
 		writeJSON(w, 200, map[string]string{"status": "ok"})
 	})
-	mux.HandleFunc("POST /api/requests", h.create)
+	mux.HandleFunc("POST /api/auth/request-code", h.requestAuthCode)
+	mux.HandleFunc("POST /api/auth/verify-code", h.verifyAuthCode)
+	mux.HandleFunc("POST /api/auth/logout", h.logout)
+	mux.HandleFunc("GET /api/me", h.requireUser(func(w http.ResponseWriter, r *http.Request, user domain.User) {
+		writeJSON(w, 200, user)
+	}))
+	mux.HandleFunc("GET /api/me/apartments", h.requireUser(func(w http.ResponseWriter, r *http.Request, user domain.User) {
+		v, e := h.Repo.UserApartments(r.Context(), user.ID)
+		respond(w, v, e)
+	}))
+	mux.HandleFunc("POST /api/me/apartments", h.requireUser(h.createApartment))
+	mux.HandleFunc("PATCH /api/me/apartments/{id}/default", h.requireUser(func(w http.ResponseWriter, r *http.Request, user domain.User) {
+		v, e := h.Repo.SetDefaultApartment(r.Context(), user.ID, r.PathValue("id"))
+		respond(w, v, e)
+	}))
+	mux.HandleFunc("DELETE /api/me/apartments/{id}", h.requireUser(func(w http.ResponseWriter, r *http.Request, user domain.User) {
+		e := h.Repo.DeleteUserApartment(r.Context(), user.ID, r.PathValue("id"))
+		respond(w, map[string]bool{"ok": true}, e)
+	}))
+	mux.HandleFunc("POST /api/requests", h.requireUser(func(w http.ResponseWriter, r *http.Request, user domain.User) {
+		h.create(w, r.WithContext(service.WithCurrentUser(r.Context(), user)))
+	}))
 	mux.HandleFunc("GET /api/addresses/search", h.searchAddresses)
 	mux.HandleFunc("GET /api/addresses/{objectId}", func(w http.ResponseWriter, r *http.Request) {
 		objectID, e := parsePositiveID(r.PathValue("objectId"))
@@ -53,17 +75,20 @@ func (h Handler) Routes() http.Handler {
 		}
 		writeJSON(w, 200, houseResponse(v))
 	}))
-	mux.HandleFunc("GET /api/requests", func(w http.ResponseWriter, r *http.Request) { v, e := h.Service.List(r.Context()); respond(w, v, e) })
-	mux.HandleFunc("GET /api/requests/{id}", h.withID(func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("GET /api/requests", h.requireUser(func(w http.ResponseWriter, r *http.Request, user domain.User) {
+		v, e := h.Service.List(service.WithCurrentUser(r.Context(), user))
+		respond(w, v, e)
+	}))
+	mux.HandleFunc("GET /api/requests/{id}", h.requireUserID(func(w http.ResponseWriter, r *http.Request, user domain.User) {
 		v, e := h.Service.Get(r.Context(), r.PathValue("id"))
 		respond(w, v, e)
 	}))
-	mux.HandleFunc("GET /api/requests/{id}/history", h.withID(func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("GET /api/requests/{id}/history", h.requireUserID(func(w http.ResponseWriter, r *http.Request, user domain.User) {
 		v, e := h.Service.History(r.Context(), r.PathValue("id"))
 		respond(w, v, e)
 	}))
-	mux.HandleFunc("GET /api/requests/{id}/photo", h.withID(func(w http.ResponseWriter, r *http.Request) {
-		b, m, e := h.Repo.Photo(r.Context(), r.PathValue("id"), service.DemoUserID)
+	mux.HandleFunc("GET /api/requests/{id}/photo", h.requireUserID(func(w http.ResponseWriter, r *http.Request, user domain.User) {
+		b, m, e := h.Repo.Photo(r.Context(), r.PathValue("id"), user.ID)
 		if e != nil {
 			respond(w, nil, e)
 			return
@@ -78,11 +103,109 @@ func (h Handler) Routes() http.Handler {
 	})
 	if h.MockStatusEnabled {
 		mux.HandleFunc("POST /api/requests/{id}/mock-next-status", h.withID(func(w http.ResponseWriter, r *http.Request) {
-			v, e := h.Service.Next(r.Context(), r.PathValue("id"), r.URL.Query().Get("reject") == "true")
+			user, e := h.currentUser(r)
+			if e != nil {
+				respond(w, nil, e)
+				return
+			}
+			v, e := h.Service.Next(service.WithCurrentUser(r.Context(), user), r.PathValue("id"), r.URL.Query().Get("reject") == "true")
 			respond(w, v, e)
 		}))
 	}
 	return mux
+}
+
+func (h Handler) requestAuthCode(w http.ResponseWriter, r *http.Request) {
+	r.Body = http.MaxBytesReader(w, r.Body, 16384)
+	var in struct {
+		Email string `json:"email"`
+	}
+	if err := decodeJSON(r, &in); err != nil {
+		badBody(w, err)
+		return
+	}
+	if err := h.Auth.RequestCode(r.Context(), in.Email); err != nil {
+		respond(w, nil, err)
+		return
+	}
+	writeJSON(w, 200, map[string]bool{"ok": true})
+}
+
+func (h Handler) verifyAuthCode(w http.ResponseWriter, r *http.Request) {
+	r.Body = http.MaxBytesReader(w, r.Body, 16384)
+	var in struct {
+		Email string `json:"email"`
+		Code  string `json:"code"`
+	}
+	if err := decodeJSON(r, &in); err != nil {
+		badBody(w, err)
+		return
+	}
+	session, err := h.Auth.VerifyCode(r.Context(), in.Email, in.Code)
+	if err != nil {
+		respond(w, nil, err)
+		return
+	}
+	http.SetCookie(w, &http.Cookie{Name: service.SessionCookieName, Value: session.Token, Path: "/", HttpOnly: true, SameSite: http.SameSiteLaxMode, MaxAge: 30 * 24 * 60 * 60})
+	writeJSON(w, 200, session.User)
+}
+
+func (h Handler) logout(w http.ResponseWriter, r *http.Request) {
+	cookie, err := r.Cookie(service.SessionCookieName)
+	if err == nil {
+		_ = h.Auth.Logout(r.Context(), cookie.Value)
+	}
+	http.SetCookie(w, &http.Cookie{Name: service.SessionCookieName, Value: "", Path: "/", HttpOnly: true, SameSite: http.SameSiteLaxMode, MaxAge: -1})
+	writeJSON(w, 200, map[string]bool{"ok": true})
+}
+
+func decodeJSON(r *http.Request, v any) error {
+	decoder := json.NewDecoder(r.Body)
+	decoder.DisallowUnknownFields()
+	if err := decoder.Decode(v); err != nil {
+		return err
+	}
+	if err := decoder.Decode(&struct{}{}); err != io.EOF {
+		return err
+	}
+	return nil
+}
+
+func (h Handler) currentUser(r *http.Request) (domain.User, error) {
+	cookie, err := r.Cookie(service.SessionCookieName)
+	if err != nil {
+		return domain.User{}, domain.ErrUnauthorized
+	}
+	return h.Auth.UserByToken(r.Context(), cookie.Value)
+}
+
+func (h Handler) requireUser(fn func(http.ResponseWriter, *http.Request, domain.User)) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		user, err := h.currentUser(r)
+		if err != nil {
+			respond(w, nil, err)
+			return
+		}
+		fn(w, r.WithContext(service.WithCurrentUser(r.Context(), user)), user)
+	}
+}
+
+func (h Handler) requireUserID(fn func(http.ResponseWriter, *http.Request, domain.User)) http.HandlerFunc {
+	return h.withID(h.requireUser(fn))
+}
+
+func (h Handler) requireRole(roles ...string) func(func(http.ResponseWriter, *http.Request, domain.User)) http.HandlerFunc {
+	return func(fn func(http.ResponseWriter, *http.Request, domain.User)) http.HandlerFunc {
+		return h.requireUser(func(w http.ResponseWriter, r *http.Request, user domain.User) {
+			for _, role := range roles {
+				if service.HasRole(user, role) {
+					fn(w, r, user)
+					return
+				}
+			}
+			respond(w, nil, domain.ErrForbidden)
+		})
+	}
 }
 
 func (h Handler) searchAddresses(w http.ResponseWriter, r *http.Request) {
@@ -147,6 +270,57 @@ func (h Handler) resolveHouse(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, 200, houseResponse(v))
+}
+
+func (h Handler) createApartment(w http.ResponseWriter, r *http.Request, user domain.User) {
+	r.Body = http.MaxBytesReader(w, r.Body, 16384)
+	var in struct {
+		HouseObjectID     string `json:"houseObjectId"`
+		ApartmentObjectID string `json:"apartmentObjectId"`
+		Label             string `json:"label"`
+		IsDefault         bool   `json:"isDefault"`
+	}
+	if err := decodeJSON(r, &in); err != nil {
+		badBody(w, err)
+		return
+	}
+	houseObjectID, err := parsePositiveID(in.HouseObjectID)
+	if err != nil {
+		respond(w, nil, err)
+		return
+	}
+	house, err := h.Addresses.GetAddress(r.Context(), houseObjectID)
+	if err != nil {
+		respond(w, nil, err)
+		return
+	}
+	if house.ObjectKind != "house" || !house.IsActive {
+		respond(w, nil, domain.ErrInvalidHouse)
+		return
+	}
+	address := house.FullAddress
+	a := domain.UserApartment{UserID: user.ID, HouseObjectID: house.ObjectID, HouseObjectGUID: house.ObjectGUID, Address: address, Label: strings.TrimSpace(in.Label), IsDefault: in.IsDefault}
+	if strings.TrimSpace(in.ApartmentObjectID) != "" {
+		apartmentObjectID, err := parsePositiveID(in.ApartmentObjectID)
+		if err != nil {
+			respond(w, nil, domain.ErrInvalidApartment)
+			return
+		}
+		apartment, err := h.Addresses.GetAddress(r.Context(), apartmentObjectID)
+		if err != nil {
+			respond(w, nil, err)
+			return
+		}
+		if apartment.ObjectKind != "apartment" || !apartment.IsActive || apartment.ParentObjectID != house.ObjectID {
+			respond(w, nil, domain.ErrInvalidApartment)
+			return
+		}
+		a.ApartmentObjectID = apartment.ObjectID
+		a.ApartmentObjectGUID = apartment.ObjectGUID
+		a.Address = apartment.FullAddress
+	}
+	v, e := h.Repo.CreateUserApartment(r.Context(), a)
+	respond(w, v, e)
 }
 
 func houseResponse(h domain.House) map[string]any {
@@ -263,6 +437,12 @@ func respond(w http.ResponseWriter, v any, err error) {
 		message = err.Error()
 	case errors.Is(err, domain.ErrConflict):
 		code = 409
+		message = err.Error()
+	case errors.Is(err, domain.ErrUnauthorized):
+		code = 401
+		message = err.Error()
+	case errors.Is(err, domain.ErrForbidden):
+		code = 403
 		message = err.Error()
 	case errors.Is(err, domain.ErrInvalidAddressID):
 		code = 400

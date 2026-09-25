@@ -13,6 +13,7 @@ import (
 	"tvoydom/config"
 	"tvoydom/controller"
 	"tvoydom/integration"
+	"tvoydom/integration/email"
 	"tvoydom/integration/gishousing"
 	"tvoydom/integration/maxbot"
 	"tvoydom/repository"
@@ -42,10 +43,12 @@ func main() {
 		slog.Error("database initialization", "error", err)
 		os.Exit(1)
 	}
-	svc := service.RequestService{Repo: repo, Addresses: repo, Houses: repo, Classifier: service.RuleClassifier{}, Router: service.RuleRouter{}, Notifications: service.NotificationService{Client: integration.MockMaxClient{}}, Housing: integration.MockHousingSystemGateway{}}
+	mailer := mailerFromConfig(c)
+	authSvc := service.AuthService{Repo: repo, Mailer: mailer, BootstrapAdmins: bootstrapAdmins(c.AdminBootstrapEmails)}
+	svc := service.RequestService{Repo: repo, Addresses: repo, Houses: repo, Classifier: service.RuleClassifier{}, Router: service.RuleRouter{}, Notifications: service.NotificationService{Client: integration.MockMaxClient{}}, Mailer: mailer, Housing: integration.MockHousingSystemGateway{}}
 	registry := gishousing.NewClient(c.GISHousingBaseURL, c.GISHousingTimeout, &http.Client{})
 	houseSvc := service.HouseService{Repo: repo, Addresses: repo, Profiles: repo, Registry: registry, ProfileTTL: c.GISHouseCacheTTL}
-	server := &http.Server{Addr: ":" + c.Port, Handler: (controller.Handler{Service: svc, Houses: houseSvc, Addresses: repo, Repo: repo, MockStatusEnabled: c.MockStatusEnabled}).Routes(), ReadHeaderTimeout: 5 * time.Second, ReadTimeout: 20 * time.Second, WriteTimeout: 30 * time.Second, IdleTimeout: 60 * time.Second}
+	server := &http.Server{Addr: ":" + c.Port, Handler: (controller.Handler{Service: svc, Auth: authSvc, Houses: houseSvc, Addresses: repo, Repo: repo, MockStatusEnabled: c.MockStatusEnabled}).Routes(), ReadHeaderTimeout: 5 * time.Second, ReadTimeout: 20 * time.Second, WriteTimeout: 30 * time.Second, IdleTimeout: 60 * time.Second}
 	stop, done := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer done()
 	if c.MaxBotToken != "" {
@@ -79,4 +82,19 @@ func main() {
 		slog.Error("http server", "error", err)
 		os.Exit(1)
 	}
+}
+
+func bootstrapAdmins(emails []string) map[string]bool {
+	result := map[string]bool{}
+	for _, email := range emails {
+		result[email] = true
+	}
+	return result
+}
+
+func mailerFromConfig(c config.Config) email.Sender {
+	if c.SMTPHost == "" {
+		return email.LogSender{}
+	}
+	return email.SMTPSender{Config: email.SMTPConfig{Host: c.SMTPHost, Port: c.SMTPPort, Username: c.SMTPUsername, Password: c.SMTPPassword, From: c.SMTPFrom, TLS: c.SMTPTLS}}
 }

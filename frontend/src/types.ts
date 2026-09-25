@@ -22,6 +22,24 @@ export interface RequestItem {
   text: string;
   hasPhoto: boolean;
 }
+export interface CurrentUser {
+  id: string;
+  email: string;
+  name: string;
+  roles: string[];
+  organizationId?: string;
+}
+export interface UserApartment {
+  id: string;
+  userId: string;
+  houseObjectId: string;
+  houseObjectGuid?: string;
+  apartmentObjectId?: string;
+  apartmentObjectGuid?: string;
+  address: string;
+  label: string;
+  isDefault: boolean;
+}
 export type AddressKind =
   | "address_object"
   | "house"

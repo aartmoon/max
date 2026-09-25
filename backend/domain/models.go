@@ -13,14 +13,24 @@ var ErrInvalidHouse = errors.New("выбранный объект не явля�
 var ErrInvalidApartment = errors.New("выбранная квартира не относится к указанному дому")
 var ErrHouseProfileNotFound = errors.New("сведения о доме не найдены в ГИС ЖКХ")
 var ErrHouseProfileUnavailable = errors.New("ГИС ЖКХ временно недоступна")
+var ErrUnauthorized = errors.New("требуется вход")
+var ErrForbidden = errors.New("недостаточно прав")
 
 type ValidationError struct{ Message string }
 
 func (e ValidationError) Error() string { return e.Message }
 
 type User struct {
-	ID   string `json:"id"`
-	Name string `json:"name"`
+	ID             string   `json:"id"`
+	Email          string   `json:"email,omitempty"`
+	Name           string   `json:"name"`
+	Roles          []string `json:"roles,omitempty"`
+	OrganizationID *string  `json:"organizationId,omitempty"`
+}
+
+type AuthSession struct {
+	Token string `json:"-"`
+	User  User   `json:"user"`
 }
 
 type HouseCharacteristics struct {
@@ -151,6 +161,17 @@ type AddressInfo struct {
 type Organization struct {
 	ID   string `json:"id"`
 	Name string `json:"name"`
+}
+type UserApartment struct {
+	ID                  string `json:"id"`
+	UserID              string `json:"userId"`
+	HouseObjectID       string `json:"houseObjectId"`
+	HouseObjectGUID     string `json:"houseObjectGuid,omitempty"`
+	ApartmentObjectID   string `json:"apartmentObjectId,omitempty"`
+	ApartmentObjectGUID string `json:"apartmentObjectGuid,omitempty"`
+	Address             string `json:"address"`
+	Label               string `json:"label"`
+	IsDefault           bool   `json:"isDefault"`
 }
 type Request struct {
 	ID                        string    `json:"id"`

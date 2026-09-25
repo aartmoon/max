@@ -32,6 +32,9 @@ var garSearchDedupMigration string
 //go:embed migrations/007_enriched_gis_house_profiles.sql
 var enrichedGISHouseProfilesMigration string
 
+//go:embed migrations/008_auth_roles.sql
+var authRolesMigration string
+
 func (p Postgres) Migrate(ctx context.Context) error {
 	tx, err := p.Pool.Begin(ctx)
 	if err != nil {
@@ -114,6 +117,17 @@ func (p Postgres) Migrate(ctx context.Context) error {
 			return err
 		}
 	}
+	if err = tx.QueryRow(ctx, `SELECT EXISTS(SELECT 1 FROM schema_migrations WHERE version=8)`).Scan(&exists); err != nil {
+		return err
+	}
+	if !exists {
+		if _, err = tx.Exec(ctx, authRolesMigration); err != nil {
+			return err
+		}
+		if _, err = tx.Exec(ctx, `INSERT INTO schema_migrations VALUES(8)`); err != nil {
+			return err
+		}
+	}
 	return tx.Commit(ctx)
 }
 
@@ -144,6 +158,22 @@ func (p Postgres) Create(ctx context.Context, r domain.Request) (domain.Request,
 }
 func (p Postgres) List(ctx context.Context, user string) ([]domain.Request, error) {
 	rows, err := p.Pool.Query(ctx, selectRequest+`WHERE ($1::text='' OR r.user_id::text=$1) ORDER BY r.created_at DESC,r.id DESC`, user)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	result := []domain.Request{}
+	for rows.Next() {
+		r, err := scan(rows)
+		if err != nil {
+			return nil, err
+		}
+		result = append(result, r)
+	}
+	return result, rows.Err()
+}
+func (p Postgres) ListByOrganization(ctx context.Context, organizationID string) ([]domain.Request, error) {
+	rows, err := p.Pool.Query(ctx, selectRequest+`WHERE r.responsible_organization_id::text=$1 ORDER BY r.created_at DESC,r.id DESC`, organizationID)
 	if err != nil {
 		return nil, err
 	}

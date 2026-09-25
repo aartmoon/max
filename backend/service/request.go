@@ -37,6 +37,7 @@ type RequestService struct {
 	Classifier    Classifier
 	Router        Router
 	Notifications NotificationService
+	Mailer        Mailer
 	Housing       integration.HousingSystemGateway
 }
 type CreateInput struct {
@@ -48,6 +49,10 @@ type CreateInput struct {
 }
 
 func (s RequestService) Create(ctx context.Context, in CreateInput) (domain.Request, error) {
+	user, ok := CurrentUser(ctx)
+	if !ok {
+		return domain.Request{}, domain.ErrUnauthorized
+	}
 	in.Description = strings.TrimSpace(in.Description)
 	in.HouseObjectID = strings.TrimSpace(in.HouseObjectID)
 	in.ApartmentObjectID = strings.TrimSpace(in.ApartmentObjectID)
@@ -102,7 +107,7 @@ func (s RequestService) Create(ctx context.Context, in CreateInput) (domain.Requ
 	org := s.Router.Route(category)
 	now := time.Now().UTC()
 	r, err := s.Repo.Create(ctx, domain.Request{
-		UserID: DemoUserID, HouseID: house.ID, Address: address, Description: in.Description, Kind: in.Kind,
+		UserID: user.ID, HouseID: house.ID, Address: address, Description: in.Description, Kind: in.Kind,
 		ProblemType: category, ResponsibleOrganizationID: org.ID, ResponsibleOrganization: org.Name,
 		Status: "CREATED", Deadline: now.AddDate(0, 0, 3), CreatedAt: now,
 		Photo: in.Photo, PhotoType: photoType, HasPhoto: len(in.Photo) > 0,
@@ -112,20 +117,37 @@ func (s RequestService) Create(ctx context.Context, in CreateInput) (domain.Requ
 	})
 	if err == nil {
 		s.Notifications.Notify(ctx, r)
+		s.NotifyManagers(ctx, r)
 	}
 	return r, err
 }
 func (s RequestService) List(ctx context.Context) ([]domain.Request, error) {
-	return s.Repo.List(ctx, DemoUserID)
+	user, ok := CurrentUser(ctx)
+	if !ok {
+		return nil, domain.ErrUnauthorized
+	}
+	return s.Repo.List(ctx, user.ID)
 }
 func (s RequestService) Get(ctx context.Context, id string) (domain.Request, error) {
-	return s.Repo.Get(ctx, id, DemoUserID)
+	user, ok := CurrentUser(ctx)
+	if !ok {
+		return domain.Request{}, domain.ErrUnauthorized
+	}
+	return s.Repo.Get(ctx, id, user.ID)
 }
 func (s RequestService) History(ctx context.Context, id string) ([]domain.RequestStatusHistory, error) {
-	return s.Repo.History(ctx, id, DemoUserID)
+	user, ok := CurrentUser(ctx)
+	if !ok {
+		return nil, domain.ErrUnauthorized
+	}
+	return s.Repo.History(ctx, id, user.ID)
 }
 func (s RequestService) Next(ctx context.Context, id string, reject bool) (domain.Request, error) {
-	r, err := s.Repo.Transition(ctx, id, DemoUserID, func(status string) (string, error) {
+	user, ok := CurrentUser(ctx)
+	if !ok {
+		return domain.Request{}, domain.ErrUnauthorized
+	}
+	r, err := s.Repo.Transition(ctx, id, user.ID, func(status string) (string, error) {
 		if reject {
 			if status == "RESOLVED" || status == "REJECTED" {
 				return "", domain.ErrConflict
@@ -144,5 +166,59 @@ func (s RequestService) Next(ctx context.Context, id string, reject bool) (domai
 		}
 	}
 	s.Notifications.Notify(ctx, r)
+	s.NotifyRequestOwnerStatusChanged(ctx, r, "")
 	return r, nil
+}
+
+type managerEmailRepository interface {
+	ManagerEmailsForOrganization(context.Context, string) ([]string, error)
+}
+
+type requestOwnerEmailRepository interface {
+	RequestOwnerEmail(context.Context, string) (string, error)
+}
+
+func notifyRequestOwnerStatusChanged(ctx context.Context, repo any, mailer Mailer, r domain.Request, comment string) {
+	if mailer == nil {
+		return
+	}
+	emailRepo, ok := repo.(requestOwnerEmailRepository)
+	if !ok {
+		return
+	}
+	email, err := emailRepo.RequestOwnerEmail(ctx, r.ID)
+	if err != nil {
+		slog.Error("request owner email lookup failed", "requestId", r.ID, "error", err)
+		return
+	}
+	if strings.TrimSpace(email) == "" {
+		return
+	}
+	if err := mailer.SendRequestStatusChanged(ctx, email, r, comment); err != nil {
+		slog.Error("request status email failed", "requestId", r.ID, "email", email, "error", err)
+	}
+}
+
+func (s RequestService) NotifyRequestOwnerStatusChanged(ctx context.Context, r domain.Request, comment string) {
+	notifyRequestOwnerStatusChanged(ctx, s.Repo, s.Mailer, r, comment)
+}
+
+func (s RequestService) NotifyManagers(ctx context.Context, r domain.Request) {
+	if s.Mailer == nil {
+		return
+	}
+	repo, ok := s.Repo.(managerEmailRepository)
+	if !ok {
+		return
+	}
+	emails, err := repo.ManagerEmailsForOrganization(ctx, r.ResponsibleOrganizationID)
+	if err != nil {
+		slog.Error("manager lookup failed", "requestId", r.ID, "error", err)
+		return
+	}
+	for _, email := range emails {
+		if err := s.Mailer.SendNewRequest(ctx, email, r); err != nil {
+			slog.Error("manager email failed", "requestId", r.ID, "email", email, "error", err)
+		}
+	}
 }

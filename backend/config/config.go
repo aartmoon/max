@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net/url"
 	"os"
+	"strings"
 	"time"
 )
 
@@ -13,6 +14,10 @@ type Config struct {
 	MaxBotToken, MaxAppURL, MaxBotUsername, MaxCACertFile string
 	GISHousingBaseURL                                     string
 	GISHousingTimeout, GISHouseCacheTTL                   time.Duration
+	SMTPHost, SMTPPort, SMTPUsername, SMTPPassword        string
+	SMTPFrom                                              string
+	SMTPTLS                                               bool
+	AdminBootstrapEmails                                  []string
 }
 
 func Load() (Config, error) {
@@ -36,7 +41,34 @@ func Load() (Config, error) {
 	if err != nil {
 		return Config{}, err
 	}
-	return Config{MaxBotToken: os.Getenv("MAX_BOT_TOKEN"), MaxAppURL: os.Getenv("MAX_APP_URL"), MaxBotUsername: os.Getenv("MAX_BOT_USERNAME"), MaxCACertFile: os.Getenv("MAX_CA_CERT_FILE"), DatabaseURL: os.Getenv("DATABASE_URL"), Port: port, MockStatusEnabled: os.Getenv("MOCK_STATUS_ENABLED") != "false", GISHousingBaseURL: baseURL, GISHousingTimeout: timeout, GISHouseCacheTTL: ttl}, nil
+	return Config{
+		MaxBotToken: os.Getenv("MAX_BOT_TOKEN"), MaxAppURL: os.Getenv("MAX_APP_URL"), MaxBotUsername: os.Getenv("MAX_BOT_USERNAME"), MaxCACertFile: os.Getenv("MAX_CA_CERT_FILE"),
+		DatabaseURL: cenv("DATABASE_URL"), Port: port, MockStatusEnabled: os.Getenv("MOCK_STATUS_ENABLED") != "false",
+		GISHousingBaseURL: baseURL, GISHousingTimeout: timeout, GISHouseCacheTTL: ttl,
+		SMTPHost: os.Getenv("SMTP_HOST"), SMTPPort: cenvDefault("SMTP_PORT", "587"), SMTPUsername: os.Getenv("SMTP_USERNAME"), SMTPPassword: os.Getenv("SMTP_PASSWORD"), SMTPFrom: os.Getenv("SMTP_FROM"), SMTPTLS: os.Getenv("SMTP_TLS") == "true",
+		AdminBootstrapEmails: splitCSV(os.Getenv("ADMIN_BOOTSTRAP_EMAILS")),
+	}, nil
+}
+
+func cenv(name string) string { return os.Getenv(name) }
+
+func cenvDefault(name, fallback string) string {
+	value := os.Getenv(name)
+	if value == "" {
+		return fallback
+	}
+	return value
+}
+
+func splitCSV(raw string) []string {
+	var values []string
+	for _, item := range strings.Split(raw, ",") {
+		item = strings.TrimSpace(item)
+		if item != "" {
+			values = append(values, item)
+		}
+	}
+	return values
 }
 
 func duration(name string, fallback time.Duration) (time.Duration, error) {
