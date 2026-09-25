@@ -23,3 +23,23 @@ func (p Postgres) Organizations(ctx context.Context) ([]domain.Organization, err
 	}
 	return result, rows.Err()
 }
+
+func (p Postgres) CreateOrganization(ctx context.Context, name string) (domain.Organization, error) {
+	tx, err := p.Pool.Begin(ctx)
+	if err != nil {
+		return domain.Organization{}, err
+	}
+	defer tx.Rollback(ctx)
+	if _, err := tx.Exec(ctx, `LOCK TABLE organizations IN EXCLUSIVE MODE`); err != nil {
+		return domain.Organization{}, err
+	}
+	var org domain.Organization
+	err = tx.QueryRow(ctx, `
+		INSERT INTO organizations(id,name)
+		SELECT COALESCE(MAX(id),0)+1,$1 FROM organizations
+		RETURNING id::text,name`, name).Scan(&org.ID, &org.Name)
+	if err != nil {
+		return domain.Organization{}, err
+	}
+	return org, tx.Commit(ctx)
+}

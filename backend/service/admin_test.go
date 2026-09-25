@@ -39,6 +39,7 @@ type adminCapture struct {
 	from        string
 	lastComment string
 	ownerEmail  string
+	orgName     string
 }
 
 func (r *adminCapture) AdminTransition(_ context.Context, id, comment string, next func(string) (string, error)) (domain.Request, error) {
@@ -57,6 +58,11 @@ func (r *adminCapture) RequestOwnerEmail(_ context.Context, id string) (string, 
 		return "resident@example.com", nil
 	}
 	return r.ownerEmail, nil
+}
+
+func (r *adminCapture) CreateOrganization(_ context.Context, name string) (domain.Organization, error) {
+	r.orgName = name
+	return domain.Organization{ID: "3", Name: name}, nil
 }
 
 type statusMailerCapture struct {
@@ -134,5 +140,21 @@ func TestAdminStatusChangeIgnoresEmailFailure(t *testing.T) {
 	}
 	if r.Status != "ACCEPTED" || mailer.email != "resident@example.com" {
 		t.Fatalf("unexpected result after mail failure: request=%+v mailer=%+v", r, mailer)
+	}
+}
+
+func TestAdminCreateOrganizationNormalizesAndValidatesName(t *testing.T) {
+	repo := &adminCapture{}
+	svc := AdminService{Repo: repo}
+
+	org, err := svc.CreateOrganization(context.Background(), "  УК «Арбат»  ")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if org.ID != "3" || org.Name != "УК «Арбат»" || repo.orgName != "УК «Арбат»" {
+		t.Fatalf("organization was not normalized: org=%+v saved=%q", org, repo.orgName)
+	}
+	if _, err := svc.CreateOrganization(context.Background(), " "); err == nil {
+		t.Fatal("empty organization name accepted")
 	}
 }

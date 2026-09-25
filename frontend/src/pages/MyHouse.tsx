@@ -1,49 +1,117 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { houseApi } from "../api";
-import type { AddressSuggestion, House } from "../types";
+import { apartmentApi, houseApi } from "../api";
+import type { AddressSuggestion, House, UserApartment } from "../types";
 import { AddressAutocomplete } from "../components/AddressAutocomplete";
 import { Back, ErrorMessage, Loading } from "../components/UI";
 
-const storageKey = "tvoy-dom:selected-house-object-id";
 const missing = "Не опубликовано в ГИС ЖКХ";
 
 export default function MyHouse() {
-  const [objectId, setObjectId] = useState(() => localStorage.getItem(storageKey) ?? "");
-  const [selection, setSelection] = useState<AddressSuggestion | null>(null);
+  const [apartments, setApartments] = useState<UserApartment[]>([]);
+  const [current, setCurrent] = useState<UserApartment | null>(null);
+  const [houseSelection, setHouseSelection] = useState<AddressSuggestion | null>(null);
+  const [apartmentSelection, setApartmentSelection] = useState<AddressSuggestion | null>(null);
   const [house, setHouse] = useState<House | null>(null);
-  const [loading, setLoading] = useState(Boolean(objectId));
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [retry, setRetry] = useState(0);
 
+  async function loadApartments(signal?: AbortSignal) {
+    const items = await apartmentApi.list(signal);
+    setApartments(items);
+    setCurrent((previous) => {
+      if (previous) {
+        const retained = items.find((item) => item.id === previous.id);
+        if (retained) return retained;
+      }
+      return items.find((item) => item.isDefault) ?? items[0] ?? null;
+    });
+  }
+
   useEffect(() => {
-    if (!objectId) return;
+    const controller = new AbortController();
+    setLoading(true);
+    loadApartments(controller.signal)
+      .catch((reason: Error) => {
+        if (!controller.signal.aborted) setError(reason.message);
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) setLoading(false);
+      });
+    return () => controller.abort();
+  }, []);
+
+  useEffect(() => {
+    if (!current) {
+      setHouse(null);
+      return;
+    }
     const controller = new AbortController();
     setLoading(true);
     setError("");
-    houseApi.resolve(objectId, controller.signal).then((value) => {
-      setHouse(value);
-      setSelection({ objectId: value.garObjectId, objectGuid: value.objectGuid, objectKind: "house", displayName: value.address, fullAddress: value.address });
-    }).catch((reason: Error) => {
-      if (!controller.signal.aborted) setError(reason.message);
-    }).finally(() => {
-      if (!controller.signal.aborted) setLoading(false);
-    });
+    houseApi
+      .resolve(current.houseObjectId, controller.signal)
+      .then(setHouse)
+      .catch((reason: Error) => {
+        if (!controller.signal.aborted) setError(reason.message);
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) setLoading(false);
+      });
     return () => controller.abort();
-  }, [objectId, retry]);
+  }, [current?.id, retry]);
 
-  const choose = (value: AddressSuggestion | null) => {
-    setSelection(value);
-    setHouse(null);
+  async function addApartment() {
+    if (!houseSelection || saving) return;
+    setSaving(true);
     setError("");
-    if (value) {
-      localStorage.setItem(storageKey, value.objectId);
-      setObjectId(value.objectId);
-    } else {
-      localStorage.removeItem(storageKey);
-      setObjectId("");
+    try {
+      const saved = await apartmentApi.create({
+        houseObjectId: houseSelection.objectId,
+        apartmentObjectId: apartmentSelection?.objectId,
+        label: apartmentSelection?.displayName || houseSelection.displayName,
+        isDefault: apartments.length === 0,
+      });
+      await loadApartments();
+      setCurrent(saved);
+      setHouseSelection(null);
+      setApartmentSelection(null);
+    } catch (reason) {
+      setError((reason as Error).message);
+    } finally {
+      setSaving(false);
     }
-  };
+  }
+
+  async function makeDefault(item: UserApartment) {
+    setSaving(true);
+    setError("");
+    try {
+      const updated = await apartmentApi.setDefault(item.id);
+      await loadApartments();
+      setCurrent(updated);
+    } catch (reason) {
+      setError((reason as Error).message);
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function removeApartment(item: UserApartment) {
+    setSaving(true);
+    setError("");
+    try {
+      await apartmentApi.remove(item.id);
+      await loadApartments();
+    } catch (reason) {
+      setError((reason as Error).message);
+    } finally {
+      setSaving(false);
+    }
+  }
+
   const text = (value: string | number | null | undefined) => value ?? missing;
   const area = (value: number | null | undefined) => value == null ? missing : `${new Intl.NumberFormat("ru-RU").format(value)} м²`;
   const percent = (value: number | null | undefined) => value == null ? missing : `${new Intl.NumberFormat("ru-RU").format(value)} %`;
@@ -61,20 +129,47 @@ export default function MyHouse() {
     <Back />
     <div className="eyebrow">ПАСПОРТ ДОМА</div>
     <h1>Мой дом</h1>
-    <p className="intro">Выберите свой адрес — характеристики загрузятся из открытого реестра ГИС ЖКХ.</p>
-    {!objectId && <section className="panel form house-picker">
-      <AddressAutocomplete label="Адрес дома" kind="house" value={selection} onChange={choose} required placeholder="Начните вводить адрес" />
-    </section>}
-    {loading ? <Loading /> : error ? <>
+    <p className="intro">Добавьте одну или несколько квартир. Основная квартира будет автоматически подставляться в новую заявку.</p>
+
+    <section className="panel form house-picker">
+      <h2>Мои квартиры</h2>
+      {apartments.length > 0 ? (
+        <div className="apartment-list">
+          {apartments.map((item) => (
+            <div className={`apartment-item ${current?.id === item.id ? "selected" : ""}`} key={item.id}>
+              <button className="text-button apartment-title" type="button" onClick={() => setCurrent(item)}>
+                {item.label || item.address}
+              </button>
+              {item.isDefault && <span className="badge">Основная</span>}
+              <div className="apartment-actions">
+                {!item.isDefault && <button className="text-button" disabled={saving} type="button" onClick={() => makeDefault(item)}>Сделать основной</button>}
+                <button className="text-button" disabled={saving} type="button" onClick={() => removeApartment(item)}>Удалить</button>
+              </div>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <p className="muted">Сохранённых квартир пока нет.</p>
+      )}
+      <AddressAutocomplete label="Адрес дома" kind="house" value={houseSelection} onChange={(value) => {
+        setHouseSelection(value);
+        setApartmentSelection(null);
+      }} required placeholder="Начните вводить адрес" />
+      {houseSelection && <AddressAutocomplete label="Квартира" kind="apartment" value={apartmentSelection} onChange={setApartmentSelection} parentObjectId={houseSelection.objectId} placeholder="Выберите квартиру" />}
+      {error && <ErrorMessage message={error} />}
+      <button className="button primary full" type="button" disabled={!houseSelection || saving} onClick={addApartment}>
+        {saving ? "Сохраняем…" : "Сохранить квартиру"}
+      </button>
+    </section>
+
+    {loading ? <Loading /> : error && current ? <>
       <ErrorMessage message={error} />
       <div className="house-actions">
         <button className="button primary" onClick={() => setRetry((value) => value + 1)}>Повторить</button>
-        <button className="button" onClick={() => choose(null)}>Выбрать другой дом</button>
       </div>
     </> : house ? <>
       {house.stale && <p className="house-warning">ГИС ЖКХ сейчас недоступна — данные могут быть устаревшими.</p>}
-      <section className="house-banner"><span className="house-symbol" aria-hidden="true">⌂</span><div><small>{house.dataSource}</small><h2>{house.address}</h2><p>{text(characteristics ? characteristics.yearBuilt : house.yearBuilt)} год постройки · {text(characteristics?.floors ?? house.floors)} этажей</p></div></section>
-      <button className="text-button" onClick={() => choose(null)}>Выбрать другой дом</button>
+      <section className="house-banner"><span className="house-symbol" aria-hidden="true">⌂</span><div><small>{current?.label || current?.address}</small><h2>{house.address}</h2><p>{text(characteristics ? characteristics.yearBuilt : house.yearBuilt)} год постройки · {text(characteristics?.floors ?? house.floors)} этажей</p></div></section>
       <section className="panel"><h2>Паспорт дома</h2><dl className="house-facts">
         <div><dt>Кадастровый номер</dt><dd>{text(house.cadastralNumber)}</dd></div>
         <div><dt>Тип дома</dt><dd>{text(characteristics?.houseType)}</dd></div>

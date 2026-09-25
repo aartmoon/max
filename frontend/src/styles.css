@@ -1613,6 +1613,41 @@ main:has(.admin-detail-layout) {
   }
 }
 
+.apartment-list {
+  display: grid;
+  gap: 10px;
+  margin: 10px 0 18px;
+}
+
+.apartment-item {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px 12px;
+  align-items: center;
+  padding: 12px;
+  border: 1px solid #e1e8df;
+  border-radius: 8px;
+  background: #fbfcfa;
+}
+
+.apartment-item.selected {
+  border-color: #7ca982;
+  background: #f3f8f2;
+}
+
+.apartment-title {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  text-align: left;
+}
+
+.apartment-actions {
+  display: flex;
+  grid-column: 1 / -1;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
 @media (max-width: 600px) {
   main:has(.admin-page),
   main:has(.admin-detail-layout) {

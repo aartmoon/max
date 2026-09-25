@@ -10,6 +10,7 @@ import (
 type AdminRepository interface {
 	RequestRepository
 	AdminTransition(context.Context, string, string, func(string) (string, error)) (domain.Request, error)
+	CreateOrganization(context.Context, string) (domain.Organization, error)
 }
 type AdminService struct {
 	Repo          AdminRepository
@@ -49,4 +50,15 @@ func (s AdminService) SetStatus(ctx context.Context, id, status, comment string)
 		notifyRequestOwnerStatusChanged(ctx, s.Repo, s.Mailer, r, comment)
 	}
 	return r, err
+}
+
+func (s AdminService) CreateOrganization(ctx context.Context, name string) (domain.Organization, error) {
+	name = strings.TrimSpace(name)
+	if name == "" {
+		return domain.Organization{}, domain.ValidationError{Message: "Название УК обязательно"}
+	}
+	if utf8.RuneCountInString(name) > 200 {
+		return domain.Organization{}, domain.ValidationError{Message: "Название УК не должно превышать 200 символов"}
+	}
+	return s.Repo.CreateOrganization(ctx, name)
 }

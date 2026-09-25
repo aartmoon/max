@@ -6,7 +6,7 @@ import { apartmentApi } from "../api";
 import { kinds, type Kind } from "../types";
 import { Back, ErrorMessage } from "../components/UI";
 import { AddressAutocomplete } from "../components/AddressAutocomplete";
-import type { AddressSuggestion } from "../types";
+import type { AddressSuggestion, UserApartment } from "../types";
 export default function NewRequest() {
   const [query] = useSearchParams();
   const requested = query.get("kind");
@@ -16,6 +16,8 @@ export default function NewRequest() {
   const [description, setDescription] = useState(""),
     [house, setHouse] = useState<AddressSuggestion | null>(null),
     [apartment, setApartment] = useState<AddressSuggestion | null>(null),
+    [apartments, setApartments] = useState<UserApartment[]>([]),
+    [selectedApartmentId, setSelectedApartmentId] = useState(""),
     [photo, setPhoto] = useState<File | null>(null),
     [error, setError] = useState(""),
     [busy, setBusy] = useState(false);
@@ -32,29 +34,36 @@ export default function NewRequest() {
     apartmentApi
       .list(controller.signal)
       .then((items) => {
+        setApartments(items);
         const current = items.find((item) => item.isDefault) ?? items[0];
         if (!current || house) return;
-        setHouse({
-          objectId: current.houseObjectId,
-          objectGuid: current.houseObjectGuid,
-          objectKind: "house",
-          displayName: current.address,
-          fullAddress: current.address,
-        });
-        if (current.apartmentObjectId) {
-          setApartment({
-            objectId: current.apartmentObjectId,
-            objectGuid: current.apartmentObjectGuid,
-            parentObjectId: current.houseObjectId,
-            objectKind: "apartment",
-            displayName: current.label || current.address,
-            fullAddress: current.address,
-          });
-        }
+        applySavedApartment(current);
       })
       .catch(() => {});
     return () => controller.abort();
   }, []);
+  function applySavedApartment(current: UserApartment) {
+    setSelectedApartmentId(current.id);
+    setHouse({
+      objectId: current.houseObjectId,
+      objectGuid: current.houseObjectGuid,
+      objectKind: "house",
+      displayName: current.address,
+      fullAddress: current.address,
+    });
+    if (current.apartmentObjectId) {
+      setApartment({
+        objectId: current.apartmentObjectId,
+        objectGuid: current.apartmentObjectGuid,
+        parentObjectId: current.houseObjectId,
+        objectKind: "apartment",
+        displayName: current.label || current.address,
+        fullAddress: current.address,
+      });
+    } else {
+      setApartment(null);
+    }
+  }
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (busy) return;
@@ -140,12 +149,34 @@ export default function NewRequest() {
             rows={5}
           />
           <small>Укажите, где и когда вы заметили проблему.</small>
+          {apartments.length > 0 && (
+            <>
+              <label htmlFor="saved-apartment">Сохранённая квартира</label>
+              <select
+                id="saved-apartment"
+                value={selectedApartmentId}
+                onChange={(event) => {
+                  const current = apartments.find(
+                    (item) => item.id === event.target.value,
+                  );
+                  if (current) applySavedApartment(current);
+                }}
+              >
+                {apartments.map((item) => (
+                  <option key={item.id} value={item.id}>
+                    {item.label || item.address}
+                  </option>
+                ))}
+              </select>
+            </>
+          )}
           <AddressAutocomplete
             label="Адрес дома"
             kind="house"
             required
             value={house}
             onChange={(next) => {
+              setSelectedApartmentId("");
               setHouse(next);
               setApartment(null);
             }}

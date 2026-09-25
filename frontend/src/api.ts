@@ -40,11 +40,6 @@ export const api = {
     call<HistoryItem[]>(`/requests/${id}/history`, { signal }),
   create: (body: FormData) =>
     call<RequestItem>("/requests", { method: "POST", body }),
-  next: (id: string, reject = false) =>
-    call<RequestItem>(
-      `/requests/${id}/mock-next-status${reject ? "?reject=true" : ""}`,
-      { method: "POST" },
-    ),
   config: () => call<{ mockStatusEnabled: boolean }>("/config"),
 };
 export const authApi = {
@@ -118,6 +113,12 @@ export const adminApi = {
     call<RequestItem[]>("/admin/requests", { signal }),
   organizations: (signal?: AbortSignal) =>
     call<Organization[]>("/organizations", { signal }),
+  createOrganization: (name: string) =>
+    call<Organization>("/admin/organizations", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name }),
+    }),
   get: (id: string, signal?: AbortSignal) =>
     call<RequestItem>(`/admin/requests/${id}`, { signal }),
   history: (id: string, signal?: AbortSignal) =>

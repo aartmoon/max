@@ -14,6 +14,19 @@ func (h Handler) adminRoutes(mux *http.ServeMux) {
 		v, e := h.Repo.Organizations(r.Context())
 		respond(w, v, e)
 	}))
+	mux.HandleFunc("POST /api/admin/organizations", h.requireRole("admin")(func(w http.ResponseWriter, r *http.Request, user domain.User) {
+		r.Body = http.MaxBytesReader(w, r.Body, 16384)
+		var in struct {
+			Name string `json:"name"`
+		}
+		if err := decodeJSON(r, &in); err != nil {
+			badBody(w, err)
+			return
+		}
+		svc := service.AdminService{Repo: h.Repo}
+		v, e := svc.CreateOrganization(r.Context(), in.Name)
+		respond(w, v, e)
+	}))
 	mux.HandleFunc("GET /api/admin/users", h.requireRole("admin")(func(w http.ResponseWriter, r *http.Request, user domain.User) {
 		v, e := h.Repo.ListUsers(r.Context())
 		respond(w, v, e)

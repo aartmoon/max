@@ -101,17 +101,6 @@ func (h Handler) Routes() http.Handler {
 	mux.HandleFunc("GET /api/config", func(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, 200, map[string]bool{"mockStatusEnabled": h.MockStatusEnabled})
 	})
-	if h.MockStatusEnabled {
-		mux.HandleFunc("POST /api/requests/{id}/mock-next-status", h.withID(func(w http.ResponseWriter, r *http.Request) {
-			user, e := h.currentUser(r)
-			if e != nil {
-				respond(w, nil, e)
-				return
-			}
-			v, e := h.Service.Next(service.WithCurrentUser(r.Context(), user), r.PathValue("id"), r.URL.Query().Get("reject") == "true")
-			respond(w, v, e)
-		}))
-	}
 	return mux
 }
 

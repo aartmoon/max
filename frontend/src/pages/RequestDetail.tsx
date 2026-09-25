@@ -19,23 +19,16 @@ export default function RequestDetail({ admin = false }: { admin?: boolean }) {
   const [item, setItem] = useState<RequestItem | null>(null),
     [history, setHistory] = useState<HistoryItem[]>([]),
     [error, setError] = useState(""),
-    [busy, setBusy] = useState(false),
-    [mock, setMock] = useState(false),
     [retry, setRetry] = useState(0);
   useEffect(() => {
     const c = new AbortController();
     setItem(null);
     setError("");
-    Promise.all([
-      client.get(id, c.signal),
-      client.history(id, c.signal),
-      admin ? Promise.resolve({ mockStatusEnabled: false }) : api.config(),
-    ])
-      .then(([r, h, config]) => {
+    Promise.all([client.get(id, c.signal), client.history(id, c.signal)])
+      .then(([r, h]) => {
         if (!c.signal.aborted) {
           setItem(r);
           setHistory(h);
-          setMock(config.mockStatusEnabled);
         }
       })
       .catch((e) => {
@@ -43,19 +36,6 @@ export default function RequestDetail({ admin = false }: { admin?: boolean }) {
       });
     return () => c.abort();
   }, [id, retry, admin]);
-  async function next(reject = false) {
-    setBusy(true);
-    setError("");
-    try {
-      const r = await api.next(id, reject);
-      setItem(r);
-      setHistory(await api.history(id));
-    } catch (e) {
-      setError((e as Error).message);
-    } finally {
-      setBusy(false);
-    }
-  }
   const adminDeadline = item ? deadlineInfo(item) : null;
   return (
     <>
@@ -183,32 +163,6 @@ export default function RequestDetail({ admin = false }: { admin?: boolean }) {
               </ol>
             </section>
           </div>
-          {mock && (
-            <section className="demo-controls">
-              <span className="eyebrow">ДЛЯ ДЕМОНСТРАЦИИ</span>
-              <p>Имитируйте обновление от ответственной организации.</p>
-              {item.status === "RESOLVED" || item.status === "REJECTED" ? (
-                <p>Заявка завершена.</p>
-              ) : (
-                <div className="demo-buttons">
-                  <button
-                    className="button primary"
-                    disabled={busy}
-                    onClick={() => next()}
-                  >
-                    {busy ? "Обновляем…" : "Следующий статус →"}
-                  </button>
-                  <button
-                    className="button"
-                    disabled={busy}
-                    onClick={() => next(true)}
-                  >
-                    Отклонить
-                  </button>
-                </div>
-              )}
-            </section>
-          )}
         </>
       )}
     </>
