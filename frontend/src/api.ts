@@ -60,7 +60,9 @@ export const authApi = {
 };
 export const apartmentApi = {
   list: (signal?: AbortSignal) =>
-    call<UserApartment[]>("/me/apartments", { signal }),
+    call<UserApartment[] | null>("/me/apartments", { signal }).then(
+      (items) => items ?? [],
+    ),
   create: (body: {
     houseObjectId: string;
     apartmentObjectId?: string;

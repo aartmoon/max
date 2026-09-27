@@ -14,7 +14,7 @@ func (p Postgres) UserApartments(ctx context.Context, userID string) ([]domain.U
 		return nil, err
 	}
 	defer rows.Close()
-	var result []domain.UserApartment
+	result := []domain.UserApartment{}
 	for rows.Next() {
 		var a domain.UserApartment
 		if err := rows.Scan(&a.ID, &a.UserID, &a.HouseObjectID, &a.HouseObjectGUID, &a.ApartmentObjectID, &a.ApartmentObjectGUID, &a.Address, &a.Label, &a.IsDefault); err != nil {
