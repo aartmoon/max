@@ -821,6 +821,7 @@ select:focus {
 }
 .house-banner h2 {
   margin: 6px 0;
+  overflow-wrap: anywhere;
 }
 .house-banner p {
   font-size: 13px;
@@ -829,9 +830,13 @@ select:focus {
 }
 .house-facts {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 24px;
   margin: 24px 0 0;
+}
+.house-facts > div,
+.house-banner > div {
+  min-width: 0;
 }
 .house-facts dt {
   margin: 0;
@@ -839,6 +844,50 @@ select:focus {
 .house-facts dd {
   font-size: 22px;
   font-weight: 600;
+  overflow-wrap: anywhere;
+}
+.house-main-facts {
+  gap: 20px 24px;
+}
+.house-main-facts dd {
+  font-size: 20px;
+}
+.house-more summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  cursor: pointer;
+  color: #274f40;
+  font-size: 18px;
+  font-weight: 600;
+  list-style: none;
+}
+.house-more summary::-webkit-details-marker {
+  display: none;
+}
+.house-more summary::after {
+  content: "⌄";
+  flex: 0 0 auto;
+  color: #718476;
+  font-size: 22px;
+  line-height: 1;
+  transition: transform 0.15s ease;
+}
+.house-more[open] summary::after {
+  transform: rotate(180deg);
+}
+.house-more summary:focus-visible {
+  outline: 3px solid #93bca5;
+  outline-offset: 5px;
+  border-radius: 4px;
+}
+.house-more[open] summary {
+  padding-bottom: 18px;
+  border-bottom: 1px solid #e3e8df;
+}
+.house-more-facts dd {
+  font-size: 16px;
 }
 .status-submit {
   margin-top: 20px;
@@ -1028,10 +1077,18 @@ select:focus {
   .house-facts dd {
     font-size: 20px;
   }
+  .house-more-facts dd {
+    font-size: 16px;
+  }
   .list-summary {
     align-items: start;
     flex-direction: column;
     gap: 4px;
+  }
+}
+@media (max-width: 360px) {
+  .house-main-facts {
+    grid-template-columns: 1fr;
   }
 }
 

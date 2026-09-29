@@ -150,6 +150,17 @@ test("emergency request is processed by UK and its comments reach the resident",
 test("house profile displays data and works at narrow and desktop widths", async ({
   page,
 }) => {
+  await page.route("**/max/api/me", (route) => route.fulfill({
+    contentType: "application/json",
+    body: JSON.stringify({ id: "resident-1", email: "resident@example.com", name: "Житель", roles: ["resident"] }),
+  }));
+  await page.route("**/max/api/me/apartments", (route) => route.fulfill({
+    contentType: "application/json",
+    body: JSON.stringify([{
+      id: "apartment-1", userId: "resident-1", houseObjectId: demoHouse.objectId,
+      address: demoHouse.fullAddress, label: demoHouse.displayName, isDefault: true,
+    }]),
+  }));
   await page.route("**/max/api/houses/resolve", (route) => route.fulfill({
     contentType: "application/json",
     body: JSON.stringify({
@@ -158,12 +169,12 @@ test("house profile displays data and works at narrow and desktop widths", async
       apartments: 144, yearBuilt: 1987, organization: "УК «Тестовая»", manager: "Иван Иванов",
       contact: "+7 000 000-00-00", dataSource: "ГИС ЖКХ", dataUpdatedAt: "2026-09-18T12:00:00Z", stale: false,
       characteristics: {
-        houseTypeCode: "1", houseType: "Многоквартирный", status: "APPROVED", projectSeries: null,
-        condition: null, lifecycleStage: null, yearBuilt: 1987, operationYear: null, reconstructionYear: null,
-        deteriorationPercent: null, deteriorationDate: null, wallMaterial: null, energyEfficiency: null,
+        houseTypeCode: "1", houseType: "Многоквартирный", status: "APPROVED", projectSeries: "  ",
+        condition: "Не опубликовано в ГИС ЖКХ", lifecycleStage: null, yearBuilt: 1987, operationYear: 1987, reconstructionYear: null,
+        deteriorationPercent: 0, deteriorationDate: null, wallMaterial: "Стены кирпичные", energyEfficiency: null,
         totalArea: 12480, livingArea: 9360, nonResidentialArea: null, residentialPremises: 144,
-        residentialPremisesArea: null, residentialPremisesWithRealty: null, residentialPremisesWithRealtyArea: null,
-        nonResidentialPremises: null, nonResidentialPremisesArea: null, nonResidentialPremisesNotCommon: null,
+        residentialPremisesArea: 9360, residentialPremisesWithRealty: null, residentialPremisesWithRealtyArea: null,
+        nonResidentialPremises: 0, nonResidentialPremisesArea: null, nonResidentialPremisesNotCommon: null,
         nonResidentialPremisesNotCommonArea: null, floors: 9, entrances: 4, ownersOrShares: null,
       },
       management: {
@@ -174,13 +185,29 @@ test("house profile displays data and works at narrow and desktop widths", async
       dataSources: [{ name: "ГИС ЖКХ · карточка дома", available: true, updatedAt: "2026-09-18T12:00:00Z", stale: false }],
     }),
   }));
-  await page.addInitScript((objectId) => localStorage.setItem("tvoy-dom:selected-house-object-id", objectId), demoHouse.objectId);
   await page.goto("/max/house");
   await expect(
     page.getByRole("heading", { name: "Мой дом", exact: true }),
   ).toBeVisible();
   await expect(page.getByText("Общая площадь", { exact: true })).toBeVisible();
   await expect(page.getByText("12 480 м²", { exact: true })).toBeVisible();
+  const mainFacts = page.locator(".house-main-facts");
+  await expect(mainFacts.locator("dt")).toHaveText([
+    "Кадастровый номер", "Тип дома", "Состояние", "Год постройки",
+    "Общая площадь", "Жилая площадь", "Жилых помещений", "Этажей",
+    "Подъездов", "Материал стен", "Физический износ",
+  ]);
+  await expect(mainFacts.locator("div").filter({ has: page.locator("dt", { hasText: "Состояние" }) }).locator("dd")).toHaveText("-");
+  await expect(mainFacts.locator("div").filter({ has: page.locator("dt", { hasText: "Физический износ" }) }).locator("dd")).toHaveText("0 %");
+  await expect(mainFacts).toContainText("Стены кирпичные");
+  await expect(page.locator(".house-more")).not.toHaveAttribute("open");
+  await page.locator(".house-more summary").click();
+  await expect(page.locator(".house-more")).toHaveAttribute("open", "");
+  await expect(page.locator(".house-more-facts")).toContainText("APPROVED");
+  await expect(page.locator(".house-more-facts")).toContainText("9 360 м²");
+  await expect(page.locator(".house-more-facts").locator("div").filter({ has: page.locator("dt", { hasText: /^Серия \/ проект$/ }) }).locator("dd")).toHaveText("-");
+  await expect(page.locator(".house-more-facts").locator("div").filter({ has: page.locator("dt", { hasText: /^Нежилых помещений$/ }) }).locator("dd")).toHaveText("0");
+  await page.locator(".house-more summary").click();
   await expect(
     page.getByRole("heading", { name: "УК «Тестовая»" }),
   ).toBeVisible();
@@ -195,6 +222,9 @@ test("house profile displays data and works at narrow and desktop widths", async
         () => document.documentElement.scrollWidth <= innerWidth,
       ),
     ).toBe(true);
+    if (width === 1280) {
+      await page.screenshot({ path: "test-results/house-desktop.png", fullPage: true });
+    }
   }
   await page.getByRole("link", { name: "Создать заявку" }).click();
   await expect(page.getByLabel("Тип заявки")).toHaveValue("APPLICATION");
