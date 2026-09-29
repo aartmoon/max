@@ -66,6 +66,14 @@ require_text docker-compose.prod.yml 'condition:[[:space:]]*service_completed_su
 require_text deploy.sh 'pull postgres gar-init backend frontend'
 require_text deploy.sh '\.demo-reset-maintenance'
 require_text deploy.sh 'stop frontend backend gar-init'
+
+prod_compose=$(POSTGRES_PASSWORD=test ADMIN_BOOTSTRAP_EMAILS='admin@example.com,manager@example.com' \
+  docker compose -f "$root/docker-compose.prod.yml" config)
+printf '%s\n' "$prod_compose" | grep -Fq 'ADMIN_BOOTSTRAP_EMAILS: admin@example.com,manager@example.com' || {
+  echo "production Compose does not pass ADMIN_BOOTSTRAP_EMAILS to backend" >&2
+  exit 1
+}
+
 if grep -Eq 'GAR_ALLOW_DEMO_DATA' "$root/docker-compose.yml" "$root/docker-compose.prod.yml"; then
   echo "Compose still exposes GAR_ALLOW_DEMO_DATA" >&2
   exit 1
