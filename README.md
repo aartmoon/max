@@ -94,6 +94,7 @@ docker-compose.yml
 | `POSTGRES_PASSWORD` | `tvoydom_demo` | Пароль демонстрационной БД |
 | `POSTGRES_DB` | `tvoydom` | Имя БД |
 | `MOCK_STATUS_ENABLED` | `true` | Только REST и UI демо-переходов статусов заявок; на адреса и паспорт дома не влияет |
+| `SESSION_COOKIE_SECURE` | `false` локально, `true` в production Compose | Сохраняет email-сессию во встроенном HTTPS-контексте MAX (`Secure; SameSite=None`) |
 | `GIS_HOUSING_BASE_URL` | `https://dom.gosuslugi.ru` | Фиксированный HTTPS-origin публичного реестра ГИС ЖКХ |
 | `GIS_HOUSING_TIMEOUT` | `8s` | Таймаут запроса к публичному реестру |
 | `GIS_HOUSE_CACHE_TTL` | `24h` | Срок свежести кеша паспорта дома |

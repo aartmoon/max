@@ -23,6 +23,7 @@ type Handler struct {
 	Addresses         service.AddressProvider
 	Repo              repository.Postgres
 	MockStatusEnabled bool
+	SecureCookies     bool
 }
 
 func (h Handler) Routes() http.Handler {
@@ -154,7 +155,7 @@ func (h Handler) verifyAuthCode(w http.ResponseWriter, r *http.Request) {
 		respond(w, nil, err)
 		return
 	}
-	http.SetCookie(w, &http.Cookie{Name: service.SessionCookieName, Value: session.Token, Path: "/", HttpOnly: true, SameSite: http.SameSiteLaxMode, MaxAge: 30 * 24 * 60 * 60})
+	h.setSessionCookie(w, r, session.Token, 30*24*60*60)
 	writeJSON(w, 200, session.User)
 }
 
@@ -163,8 +164,20 @@ func (h Handler) logout(w http.ResponseWriter, r *http.Request) {
 	if err == nil {
 		_ = h.Auth.Logout(r.Context(), cookie.Value)
 	}
-	http.SetCookie(w, &http.Cookie{Name: service.SessionCookieName, Value: "", Path: "/", HttpOnly: true, SameSite: http.SameSiteLaxMode, MaxAge: -1})
+	h.setSessionCookie(w, r, "", -1)
 	writeJSON(w, 200, map[string]bool{"ok": true})
+}
+
+func (h Handler) setSessionCookie(w http.ResponseWriter, r *http.Request, value string, maxAge int) {
+	secure := h.SecureCookies || r.TLS != nil
+	sameSite := http.SameSiteLaxMode
+	if secure {
+		sameSite = http.SameSiteNoneMode
+	}
+	http.SetCookie(w, &http.Cookie{
+		Name: service.SessionCookieName, Value: value, Path: "/", HttpOnly: true,
+		Secure: secure, SameSite: sameSite, MaxAge: maxAge,
+	})
 }
 
 func decodeJSON(r *http.Request, v any) error {
