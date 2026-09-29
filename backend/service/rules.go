@@ -17,6 +17,12 @@ func (RuleClassifier) Classify(text string) string {
 		{[]string{"труба", "течет", "протечка"}, "PIPE_LEAK"},
 		{[]string{"лифт"}, "ELEVATOR"},
 		{[]string{"отопление", "батарея", "холодно"}, "HEATING"},
+		{[]string{"нет воды", "водоснабжение", "качество воды"}, "WATER_SUPPLY"},
+		{[]string{"электричество", "нет света", "напряжение"}, "ELECTRICITY"},
+		{[]string{"мусор", "контейнер"}, "WASTE"},
+		{[]string{"крыша", "кровля"}, "ROOF"},
+		{[]string{"капремонт", "капитальный ремонт"}, "CAPITAL_REPAIR"},
+		{[]string{"уличный фонарь", "наружное освещение"}, "OUTDOOR_LIGHTING"},
 	} {
 		for _, word := range rule.words {
 			if strings.Contains(text, word) {

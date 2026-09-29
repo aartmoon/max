@@ -12,6 +12,10 @@ import {
   type HistoryItem,
 } from "../types";
 import { ErrorMessage, Loading, StatusBadge } from "../components/UI";
+import RequestConversation from "../components/RequestConversation";
+import RequestAssignment from "../components/RequestAssignment";
+import ResidentResolution from "../components/ResidentResolution";
+import RoutingAdmin from "../components/RoutingAdmin";
 import { deadlineInfo, formatAdminDateTime } from "../admin";
 export default function RequestDetail({ admin = false }: { admin?: boolean }) {
   const client = admin ? adminApi : api;
@@ -37,6 +41,10 @@ export default function RequestDetail({ admin = false }: { admin?: boolean }) {
     return () => c.abort();
   }, [id, retry, admin]);
   const adminDeadline = item ? deadlineInfo(item) : null;
+  async function refreshDetail() {
+    const [r, h] = await Promise.all([client.get(id), client.history(id)]);
+    setItem(r); setHistory(h);
+  }
   return (
     <>
       <Link className="back" to={admin ? "/admin" : "/requests"}>
@@ -77,15 +85,10 @@ export default function RequestDetail({ admin = false }: { admin?: boolean }) {
                 <AdminStatusForm
                   key={`${item.id}-${item.status}`}
                   item={item}
-                  onUpdated={async () => {
-                    const [r, h] = await Promise.all([
-                      adminApi.get(id),
-                      adminApi.history(id),
-                    ]);
-                    setItem(r);
-                    setHistory(h);
-                  }}
+                  onUpdated={refreshDetail}
                 />
+                <RoutingAdmin item={item} onUpdated={refreshDetail}/>
+                <RequestAssignment item={item} onUpdated={refreshDetail}/>
               </>
             )}
             <section className="panel detail admin-request-details">
@@ -117,7 +120,11 @@ export default function RequestDetail({ admin = false }: { admin?: boolean }) {
                 <dt>Адрес</dt>
                 <dd>{item.address}</dd>
                 <dt>Ответственный</dt>
-                <dd>{item.responsibleOrganization}</dd>
+                <dd>{item.primaryOrganization || item.responsibleOrganization || "Назначается диспетчером"}</dd>
+                <dt>Почему выбран адресат</dt><dd>{item.routingReason || "Сохранено из прежней версии заявки"}</dd>
+                {item.contractorOrganization && <><dt>Подрядчик</dt><dd>{item.contractorOrganization}</dd></>}
+                <dt>Исполнитель</dt><dd>{item.assignedUserName || "Пока не назначен"}{item.executorContact && <small className="muted">{item.executorContact}</small>}</dd>
+                <dt>Плановый визит</dt><dd>{item.visitStart && item.visitEnd ? `${new Date(item.visitStart).toLocaleString("ru-RU")} — ${new Date(item.visitEnd).toLocaleString("ru-RU")}` : "Пока не назначен"}</dd>
                 <dt>Срок обработки</dt>
                 <dd>
                   до {date(item.deadline)}
@@ -142,6 +149,11 @@ export default function RequestDetail({ admin = false }: { admin?: boolean }) {
                 </a>
               )}
             </section>
+            {item.finalReport && <section className="panel"><h2>Результат выполнения</h2><p>{item.finalReport}</p></section>}
+            {!admin && (
+              <ResidentResolution item={item} onUpdated={refreshDetail} />
+            )}
+            <RequestConversation requestId={item.id} organization={admin}/>
             <section className="panel request-copy">
               <h2>Текст заявки</h2>
               <p className="request-text">{item.text}</p>

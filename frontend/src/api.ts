@@ -9,6 +9,8 @@ import type {
   CurrentUser,
   UserApartment,
   UserRole,
+  RequestMessage,
+  ResponsibilityRule,
 } from "./types";
 import { apiPath } from "./paths";
 async function call<T>(path: string, init?: RequestInit): Promise<T> {
@@ -41,6 +43,12 @@ export const api = {
     call<HistoryItem[]>(`/requests/${id}/history`, { signal }),
   create: (body: FormData) =>
     call<RequestItem>("/requests", { method: "POST", body }),
+  messages: (id: string, signal?: AbortSignal) =>
+    call<RequestMessage[]>(`/requests/${id}/messages`, { signal }),
+  sendMessage: (id: string, body: FormData) =>
+    call<RequestMessage>(`/requests/${id}/messages`, { method: "POST", body }),
+  decideResolution: (id: string, body: { solved: boolean; rating?: number; comment: string }) =>
+    call<RequestItem>(`/requests/${id}/resolution`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) }),
   config: () => call<{ mockStatusEnabled: boolean }>("/config"),
 };
 export const authApi = {
@@ -112,8 +120,11 @@ export const addressApi = {
   },
 };
 export const adminApi = {
-  list: (signal?: AbortSignal) =>
-    call<RequestItem[]>("/admin/requests", { signal }),
+  list: (signal?: AbortSignal, queue = "ACTIVE") => {
+    const params = new URLSearchParams({ queue });
+    if (queue === "VISIT_TODAY") { const start = new Date(); start.setHours(0,0,0,0); const end = new Date(start); end.setDate(end.getDate()+1); params.set("visitStart",start.toISOString()); params.set("visitEnd",end.toISOString()); }
+    return call<RequestItem[]>(`/admin/requests?${params}`, { signal });
+  },
   organizations: (signal?: AbortSignal) =>
     call<Organization[]>("/organizations", { signal }),
   createOrganization: (name: string) =>
@@ -140,10 +151,30 @@ export const adminApi = {
     call<RequestItem>(`/admin/requests/${id}`, { signal }),
   history: (id: string, signal?: AbortSignal) =>
     call<HistoryItem[]>(`/admin/requests/${id}/history`, { signal }),
+  messages: (id: string, signal?: AbortSignal) =>
+    call<RequestMessage[]>(`/organization/requests/${id}/messages`, { signal }),
+  sendMessage: (id: string, body: FormData) =>
+    call<RequestMessage>(`/organization/requests/${id}/messages`, { method: "POST", body }),
+  staff: (organizationId?: string) =>
+    call<CurrentUser[]>(`/organization/staff${organizationId ? `?organizationId=${encodeURIComponent(organizationId)}` : ""}`),
+  updateAssignment: (id: string, body: { assigneeUserId: string; contractorOrganizationId: string; executorContact: string; visitStart?: string; visitEnd?: string }) =>
+    call<RequestItem>(`/organization/requests/${id}/assignment`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) }),
   setStatus: (id: string, status: Status, comment: string) =>
     call<RequestItem>(`/admin/requests/${id}/status`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ status, comment }),
     }),
+};
+
+export const routingAdminApi = {
+  rules: () => call<ResponsibilityRule[]>("/admin/responsibility-rules"),
+  houses: () => call<House[]>("/admin/houses"),
+  organizationTypes: () => call<{ code: string; name: string }[]>("/admin/organization-types"),
+  saveRule: (id: string | undefined, body: Omit<ResponsibilityRule, "id" | "organizationName">) =>
+    call<ResponsibilityRule>(id ? `/admin/responsibility-rules/${id}` : "/admin/responsibility-rules", { method: id ? "PATCH" : "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) }),
+  saveOrganization: (id: string | undefined, body: Partial<Organization>) =>
+    call<Organization>(id ? `/admin/organizations/${id}` : "/admin/organizations", { method: id ? "PATCH" : "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) }),
+  route: (requestId: string, body: { primaryOrganizationId: string; contractorOrganizationId?: string; reason: string }) =>
+    call<RequestItem>(`/admin/requests/${requestId}/route`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) }),
 };

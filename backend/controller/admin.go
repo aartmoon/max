@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"io"
 	"net/http"
+	"time"
 	"tvoydom/domain"
 	"tvoydom/service"
 )
@@ -12,20 +13,34 @@ import (
 func (h Handler) adminRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("GET /api/organizations", h.requireRole("manager", "admin")(func(w http.ResponseWriter, r *http.Request, user domain.User) {
 		v, e := h.Repo.Organizations(r.Context())
+		if e == nil && !service.HasRole(user, "admin") {
+			if user.OrganizationID == nil {
+				respond(w, nil, domain.ErrForbidden)
+				return
+			}
+			filtered := v[:0]
+			for _, organization := range v {
+				if organization.ID == *user.OrganizationID {
+					filtered = append(filtered, organization)
+				}
+			}
+			v = filtered
+		}
 		respond(w, v, e)
 	}))
 	mux.HandleFunc("POST /api/admin/organizations", h.requireRole("admin")(func(w http.ResponseWriter, r *http.Request, user domain.User) {
 		r.Body = http.MaxBytesReader(w, r.Body, 16384)
-		var in struct {
-			Name string `json:"name"`
-		}
+		var in service.SaveOrganizationInput
 		if err := decodeJSON(r, &in); err != nil {
 			badBody(w, err)
 			return
 		}
-		svc := service.AdminService{Repo: h.Repo}
-		v, e := svc.CreateOrganization(r.Context(), in.Name)
-		respond(w, v, e)
+		v, e := (service.RoutingAdminService{Repo: h.Repo}).SaveOrganization(r.Context(), "", in)
+		if e != nil {
+			respond(w, nil, e)
+			return
+		}
+		writeJSON(w, http.StatusCreated, v)
 	}))
 	mux.HandleFunc("GET /api/admin/users", h.requireRole("admin")(func(w http.ResponseWriter, r *http.Request, user domain.User) {
 		v, e := h.Repo.ListUsers(r.Context())
@@ -54,41 +69,54 @@ func (h Handler) adminRoutes(mux *http.ServeMux) {
 		respond(w, v, e)
 	})))
 	mux.HandleFunc("GET /api/admin/requests", h.requireRole("manager", "admin")(func(w http.ResponseWriter, r *http.Request, user domain.User) {
-		if service.HasRole(user, "admin") {
-			v, e := h.Repo.List(r.Context(), "")
-			respond(w, v, e)
-			return
-		}
-		if user.OrganizationID == nil {
+		organizationID := ""
+		if !service.HasRole(user, "admin") && user.OrganizationID == nil {
 			respond(w, nil, domain.ErrForbidden)
 			return
 		}
-		v, e := h.Repo.ListByOrganization(r.Context(), *user.OrganizationID)
+		if user.OrganizationID != nil {
+			organizationID = *user.OrganizationID
+		}
+		queue := r.URL.Query().Get("queue")
+		if queue == "" {
+			queue = "ACTIVE"
+		}
+		start, end := time.Now().UTC().Truncate(24*time.Hour), time.Now().UTC().Truncate(24*time.Hour).Add(24*time.Hour)
+		if raw := r.URL.Query().Get("visitStart"); raw != "" {
+			if parsed, err := time.Parse(time.RFC3339, raw); err == nil {
+				start = parsed
+			}
+		}
+		if raw := r.URL.Query().Get("visitEnd"); raw != "" {
+			if parsed, err := time.Parse(time.RFC3339, raw); err == nil {
+				end = parsed
+			}
+		}
+		v, e := h.Repo.ListAccessibleRequests(r.Context(), organizationID, user.ID, queue, start, end)
 		respond(w, v, e)
 	}))
 	mux.HandleFunc("GET /api/admin/requests/{id}", h.withID(h.requireRole("manager", "admin")(func(w http.ResponseWriter, r *http.Request, user domain.User) {
-		v, e := h.Repo.Get(r.Context(), r.PathValue("id"), "")
-		if e == nil && !service.HasRole(user, "admin") && (user.OrganizationID == nil || r.URL.Path == "" || v.ResponsibleOrganizationID != *user.OrganizationID) {
-			e = domain.ErrForbidden
+		_, e := (service.AccessService{Repo: h.Repo}).Require(r.Context(), r.PathValue("id"), service.CapabilityRead)
+		if e != nil {
+			respond(w, nil, e)
+			return
 		}
+		v, e := h.Repo.Get(r.Context(), r.PathValue("id"), "")
 		respond(w, v, e)
 	})))
 	mux.HandleFunc("GET /api/admin/requests/{id}/history", h.withID(h.requireRole("manager", "admin")(func(w http.ResponseWriter, r *http.Request, user domain.User) {
-		if !service.HasRole(user, "admin") {
-			v, e := h.Repo.Get(r.Context(), r.PathValue("id"), "")
-			if e != nil {
-				respond(w, nil, e)
-				return
-			}
-			if user.OrganizationID == nil || v.ResponsibleOrganizationID != *user.OrganizationID {
-				respond(w, nil, domain.ErrForbidden)
-				return
-			}
+		if _, e := (service.AccessService{Repo: h.Repo}).Require(r.Context(), r.PathValue("id"), service.CapabilityRead); e != nil {
+			respond(w, nil, e)
+			return
 		}
 		v, e := h.Repo.History(r.Context(), r.PathValue("id"), "")
 		respond(w, v, e)
 	})))
 	mux.HandleFunc("GET /api/admin/requests/{id}/photo", h.withID(h.requireRole("manager", "admin")(func(w http.ResponseWriter, r *http.Request, user domain.User) {
+		if _, e := (service.AccessService{Repo: h.Repo}).Require(r.Context(), r.PathValue("id"), service.CapabilityRead); e != nil {
+			respond(w, nil, e)
+			return
+		}
 		b, m, e := h.Repo.Photo(r.Context(), r.PathValue("id"), "")
 		if e != nil {
 			respond(w, nil, e)
@@ -115,19 +143,12 @@ func (h Handler) adminRoutes(mux *http.ServeMux) {
 			badBody(w, err)
 			return
 		}
-		svc := service.AdminService{Repo: h.Repo, Notifications: h.Service.Notifications, Mailer: h.Service.Mailer}
-		if !service.HasRole(user, "admin") {
-			existing, e := h.Repo.Get(r.Context(), r.PathValue("id"), "")
-			if e != nil {
-				respond(w, nil, e)
-				return
-			}
-			if user.OrganizationID == nil || existing.ResponsibleOrganizationID != *user.OrganizationID {
-				respond(w, nil, domain.ErrForbidden)
-				return
-			}
+		svc := service.WorkflowService{Repo: h.Repo, Access: service.AccessService{Repo: h.Repo}}
+		v, e := svc.SetStatus(r.Context(), r.PathValue("id"), in.Status, service.ResolveInput{FinalReport: in.Comment})
+		if e == nil {
+			h.Service.Notifications.Notify(r.Context(), v)
+			h.Service.NotifyRequestOwnerStatusChanged(r.Context(), v, in.Comment)
 		}
-		v, e := svc.SetStatus(r.Context(), r.PathValue("id"), in.Status, in.Comment)
 		respond(w, v, e)
 	})))
 }

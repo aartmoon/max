@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log/slog"
 	"net/http"
@@ -35,7 +36,7 @@ type RequestService struct {
 	Addresses     AddressProvider
 	Houses        HouseRepository
 	Classifier    Classifier
-	Router        Router
+	Routing       RouteResolver
 	Notifications NotificationService
 	Mailer        Mailer
 	Housing       integration.HousingSystemGateway
@@ -45,6 +46,8 @@ type CreateInput struct {
 	HouseObjectID     string `json:"houseObjectId"`
 	ApartmentObjectID string `json:"apartmentObjectId"`
 	Kind              string `json:"kind"`
+	Place             string `json:"place"`
+	Urgency           string `json:"urgency"`
 	Photo             []byte `json:"-"`
 }
 
@@ -64,6 +67,21 @@ func (s RequestService) Create(ctx context.Context, in CreateInput) (domain.Requ
 	}
 	if in.Kind != "PROBLEM" && in.Kind != "APPLICATION" && in.Kind != "QUESTION" && in.Kind != "EMERGENCY" && in.Kind != "COMPLAINT" {
 		return domain.Request{}, domain.ValidationError{Message: "Неизвестный тип обращения"}
+	}
+	if DetectImmediateDanger(in.Description) {
+		return domain.Request{}, domain.ValidationError{Message: "При пожаре, запахе газа или непосредственной угрозе жизни позвоните 112 или в профильную аварийную службу"}
+	}
+	if in.Place == "" {
+		in.Place = "COMMON_PROPERTY"
+	}
+	if in.Urgency == "" {
+		in.Urgency = "NORMAL"
+	}
+	if !validProblemPlace(in.Place) {
+		return domain.Request{}, domain.ValidationError{Message: "Неизвестное место проблемы"}
+	}
+	if in.Urgency != "NORMAL" && in.Urgency != "URGENT" {
+		return domain.Request{}, domain.ValidationError{Message: "Неизвестная срочность"}
 	}
 	photoType := ""
 	if len(in.Photo) > 0 {
@@ -104,22 +122,53 @@ func (s RequestService) Create(ctx context.Context, in CreateInput) (domain.Requ
 		return domain.Request{}, err
 	}
 	category := s.Classifier.Classify(in.Description)
-	org := s.Router.Route(category)
 	now := time.Now().UTC()
+	decision, routeErr := s.Routing.Resolve(ctx, RouteQuery{HouseID: house.ID, Category: category, Place: in.Place, Urgency: in.Urgency, At: now})
+	status := "CREATED"
+	primaryID, primaryName, contractorID, contractorName := "", "", "", ""
+	ruleID, reason, source := "", "Правило не найдено — требуется ручное назначение", ""
+	if routeErr == nil {
+		primaryID, primaryName = decision.Primary.OrganizationID, decision.Primary.OrganizationName
+		ruleID, reason, source = decision.Primary.ID, decision.Reason, decision.Primary.Source
+		if decision.Contractor != nil {
+			contractorID, contractorName = decision.Contractor.OrganizationID, decision.Contractor.OrganizationName
+		}
+	} else if errors.Is(routeErr, ErrRoutingRequired) {
+		status = "ROUTING_REQUIRED"
+	} else {
+		return domain.Request{}, routeErr
+	}
+	recipient := primaryName
+	if recipient == "" {
+		recipient = "диспетчерскую ручной маршрутизации"
+	}
 	r, err := s.Repo.Create(ctx, domain.Request{
 		UserID: user.ID, HouseID: house.ID, Address: address, Description: in.Description, Kind: in.Kind,
-		ProblemType: category, ResponsibleOrganizationID: org.ID, ResponsibleOrganization: org.Name,
-		Status: "CREATED", Deadline: now.AddDate(0, 0, 3), CreatedAt: now,
+		ProblemType: category, ProblemPlace: in.Place, Urgency: in.Urgency,
+		ResponsibleOrganizationID: primaryID, ResponsibleOrganization: primaryName,
+		PrimaryOrganizationID: primaryID, PrimaryOrganization: primaryName,
+		ContractorOrganizationID: contractorID, ContractorOrganization: contractorName,
+		RoutingRuleID: ruleID, RoutingReason: reason, RoutingSource: source,
+		Status: status, Deadline: now.AddDate(0, 0, 3), CreatedAt: now, AwaitingParty: "NONE",
 		Photo: in.Photo, PhotoType: photoType, HasPhoto: len(in.Photo) > 0,
 		HouseObjectID: houseAddress.ObjectID, HouseObjectGUID: houseAddress.ObjectGUID,
 		ApartmentObjectID: apartment.ObjectID, ApartmentObjectGUID: apartment.ObjectGUID,
-		Text: fmt.Sprintf("В %s\nАдрес: %s\n\n%s\n\nПрошу рассмотреть обращение и сообщить о результате.", org.Name, address, in.Description),
+		Text: fmt.Sprintf("В %s\nАдрес: %s\n\n%s\n\nПрошу рассмотреть обращение и сообщить о результате.", recipient, address, in.Description),
 	})
 	if err == nil {
 		s.Notifications.Notify(ctx, r)
 		s.NotifyManagers(ctx, r)
 	}
 	return r, err
+}
+
+func validProblemPlace(place string) bool {
+	switch place {
+	case "APARTMENT", "COMMON_PROPERTY", "YARD", "CITY_TERRITORY", "RESOURCE_INPUT":
+		return true
+	default:
+		return false
+	}
 }
 func (s RequestService) List(ctx context.Context) ([]domain.Request, error) {
 	user, ok := CurrentUser(ctx)

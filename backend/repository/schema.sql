@@ -26,4 +26,4 @@ CREATE TABLE IF NOT EXISTS request_status_history (
 CREATE INDEX IF NOT EXISTS history_request_idx ON request_status_history(request_id,id);
 INSERT INTO users VALUES (1,'Тестовый житель') ON CONFLICT DO NOTHING;
 INSERT INTO houses(address) VALUES ('г. Москва, ул. Тестовая, д. 1') ON CONFLICT DO NOTHING;
-INSERT INTO organizations VALUES (1,'УК «Тестовая»'),(2,'УК «Тестовая» / подрядчик «ТестЛифт»') ON CONFLICT DO NOTHING;
+INSERT INTO organizations(id,name) VALUES (1,'УК «Тестовая»'),(2,'УК «Тестовая» / подрядчик «ТестЛифт»') ON CONFLICT DO NOTHING;

@@ -27,6 +27,9 @@ type Handler struct {
 func (h Handler) Routes() http.Handler {
 	mux := http.NewServeMux()
 	h.adminRoutes(mux)
+	h.messageRoutes(mux)
+	h.workflowRoutes(mux)
+	h.routingAdminRoutes(mux)
 	mux.HandleFunc("GET /api/health", func(w http.ResponseWriter, r *http.Request) {
 		if err := h.Repo.Pool.Ping(r.Context()); err != nil {
 			writeJSON(w, 503, map[string]string{"error": "База данных недоступна"})
@@ -361,6 +364,8 @@ func (h Handler) create(w http.ResponseWriter, r *http.Request) {
 		in.HouseObjectID = r.FormValue("houseObjectId")
 		in.ApartmentObjectID = r.FormValue("apartmentObjectId")
 		in.Kind = r.FormValue("kind")
+		in.Place = r.FormValue("place")
+		in.Urgency = r.FormValue("urgency")
 		f, _, err := r.FormFile("photo")
 		if err == nil {
 			defer f.Close()

@@ -6,6 +6,7 @@ import {
   Route,
   NavLink,
   Link,
+  Navigate,
   useLocation,
 } from "react-router-dom";
 import { useEffect } from "react";
@@ -50,8 +51,8 @@ function App() {
         <Routes>
           <Route path="/" element={<Home />} />
           <Route path="/house" element={<MyHouse />} />
-          <Route path="/admin" element={<Admin />} />
-          <Route path="/admin/requests/:id" element={<RequestDetail admin />} />
+          <Route path="/admin" element={<RequireOrganizationRole><Admin /></RequireOrganizationRole>} />
+          <Route path="/admin/requests/:id" element={<RequireOrganizationRole><RequestDetail admin /></RequireOrganizationRole>} />
           <Route path="/requests/new" element={<NewRequest />} />
           <Route path="/requests" element={<Requests />} />
           <Route path="/requests/:id" element={<RequestDetail />} />
@@ -84,6 +85,10 @@ function App() {
       )}
     </>
   );
+}
+function RequireOrganizationRole({ children }: { children: React.ReactNode }) {
+  const { user } = useAuth();
+  return user.roles?.some((role) => role === "manager" || role === "admin") ? children : <Navigate to="/" replace />;
 }
 ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode>

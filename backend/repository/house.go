@@ -8,15 +8,15 @@ import (
 // Empty user scope is reserved for the unauthenticated demo organization console.
 // A real deployment must supply an authenticated organization scope instead.
 func (p Postgres) Organizations(ctx context.Context) ([]domain.Organization, error) {
-	rows, err := p.Pool.Query(ctx, `SELECT id::text,name FROM organizations ORDER BY id`)
+	rows, err := p.Pool.Query(ctx, `SELECT id::text,name,type_code,COALESCE(inn,''),COALESCE(ogrn,''),COALESCE(external_guid,''),phone,website,source,source_url,source_snapshot_at,active FROM organizations ORDER BY name`)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
 	result := []domain.Organization{}
 	for rows.Next() {
-		var o domain.Organization
-		if err := rows.Scan(&o.ID, &o.Name); err != nil {
+		o, err := scanOrganization(rows)
+		if err != nil {
 			return nil, err
 		}
 		result = append(result, o)

@@ -45,7 +45,7 @@ func main() {
 	}
 	mailer := mailerFromConfig(c)
 	authSvc := service.AuthService{Repo: repo, Mailer: mailer, BootstrapAdmins: bootstrapAdmins(c.AdminBootstrapEmails)}
-	svc := service.RequestService{Repo: repo, Addresses: repo, Houses: repo, Classifier: service.RuleClassifier{}, Router: service.RuleRouter{}, Notifications: service.NotificationService{Client: integration.MockMaxClient{}}, Mailer: mailer, Housing: integration.MockHousingSystemGateway{}}
+	svc := service.RequestService{Repo: repo, Addresses: repo, Houses: repo, Classifier: service.RuleClassifier{}, Routing: service.RoutingService{Repo: repo}, Notifications: service.NotificationService{Client: integration.MockMaxClient{}}, Mailer: mailer, Housing: integration.MockHousingSystemGateway{}}
 	registry := gishousing.NewClient(c.GISHousingBaseURL, c.GISHousingTimeout, &http.Client{})
 	houseSvc := service.HouseService{Repo: repo, Addresses: repo, Profiles: repo, Registry: registry, ProfileTTL: c.GISHouseCacheTTL}
 	server := &http.Server{Addr: ":" + c.Port, Handler: (controller.Handler{Service: svc, Auth: authSvc, Houses: houseSvc, Addresses: repo, Repo: repo, MockStatusEnabled: c.MockStatusEnabled}).Routes(), ReadHeaderTimeout: 5 * time.Second, ReadTimeout: 20 * time.Second, WriteTimeout: 30 * time.Second, IdleTimeout: 60 * time.Second}

@@ -14,6 +14,8 @@ export default function NewRequest() {
     requested && requested in kinds ? (requested as Kind) : "APPLICATION",
   );
   const [description, setDescription] = useState(""),
+    [place, setPlace] = useState("COMMON_PROPERTY"),
+    [urgency, setUrgency] = useState("NORMAL"),
     [house, setHouse] = useState<AddressSuggestion | null>(null),
     [apartment, setApartment] = useState<AddressSuggestion | null>(null),
     [apartments, setApartments] = useState<UserApartment[]>([]),
@@ -24,7 +26,7 @@ export default function NewRequest() {
   const navigate = useNavigate();
   const bridge = useMaxBridge();
   const initialKind = useRef(kind);
-  const dirty = Boolean(description.trim() || photo || house || apartment || kind !== initialKind.current);
+  const dirty = Boolean(description.trim() || photo || house || apartment || kind !== initialKind.current || place !== "COMMON_PROPERTY" || urgency !== "NORMAL");
   useEffect(() => {
     bridge.closingConfirmation(dirty);
     return () => bridge.closingConfirmation(false);
@@ -83,6 +85,8 @@ export default function NewRequest() {
       body.set("houseObjectId", house.objectId);
       if (apartment) body.set("apartmentObjectId", apartment.objectId);
       body.set("kind", kind);
+      body.set("place", place);
+      body.set("urgency", urgency);
       if (photo) body.set("photo", photo);
       const item = await api.create(body);
       navigate(`/requests/${item.id}`, { replace: true });
@@ -149,6 +153,22 @@ export default function NewRequest() {
             rows={5}
           />
           <small>Укажите, где и когда вы заметили проблему.</small>
+          <label htmlFor="problem-place">Место проблемы <span>*</span></label>
+          <select id="problem-place" value={place} onChange={(event) => setPlace(event.target.value)}>
+            <option value="APARTMENT">В квартире</option>
+            <option value="COMMON_PROPERTY">Общее имущество дома</option>
+            <option value="YARD">Во дворе</option>
+            <option value="RESOURCE_INPUT">На вводе коммунального ресурса</option>
+            <option value="CITY_TERRITORY">На городской территории</option>
+          </select>
+          <label htmlFor="urgency">Срочность <span>*</span></label>
+          <select id="urgency" value={urgency} onChange={(event) => setUrgency(event.target.value)}>
+            <option value="NORMAL">Обычная</option>
+            <option value="URGENT">Срочная</option>
+          </select>
+          <p className="urgent-note">
+            При пожаре, запахе газа или непосредственной угрозе жизни звоните 112. Такие ситуации нельзя отправлять как обычную заявку.
+          </p>
           {apartments.length > 0 && (
             <>
               <label htmlFor="saved-apartment">Сохранённая квартира</label>

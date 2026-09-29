@@ -1,5 +1,5 @@
 export type Status =
-  "CREATED" | "SENT" | "ACCEPTED" | "IN_PROGRESS" | "RESOLVED" | "REJECTED";
+  "ROUTING_REQUIRED" | "CREATED" | "SENT" | "ACCEPTED" | "IN_PROGRESS" | "RESOLVED" | "CLOSED" | "REJECTED";
 export type Kind =
   "PROBLEM" | "APPLICATION" | "QUESTION" | "EMERGENCY" | "COMPLAINT";
 export type UserRole = "resident" | "manager" | "admin";
@@ -22,6 +22,23 @@ export interface RequestItem {
   kind: Kind;
   text: string;
   hasPhoto: boolean;
+  problemPlace: string;
+  urgency: string;
+  primaryOrganizationId?: string;
+  primaryOrganization?: string;
+  contractorOrganizationId?: string;
+  contractorOrganization?: string;
+  routingRuleId?: string;
+  routingReason: string;
+  routingSource?: string;
+  assignedUserId?: string;
+  assignedUserName?: string;
+  visitStart?: string;
+  visitEnd?: string;
+  executorContact?: string;
+  finalReport?: string;
+  awaitingParty: "NONE" | "RESIDENT" | "ORGANIZATION";
+  reopenCount: number;
 }
 export interface CurrentUser {
   id: string;
@@ -65,11 +82,13 @@ export interface HistoryItem {
   actor: string;
 }
 export const statuses: Record<Status, string> = {
+  ROUTING_REQUIRED: "Требуется маршрутизация",
   CREATED: "Создано",
   SENT: "Отправлено",
   ACCEPTED: "Принято",
   IN_PROGRESS: "В работе",
-  RESOLVED: "Решено",
+  RESOLVED: "Ожидает подтверждения",
+  CLOSED: "Закрыто",
   REJECTED: "Отклонено",
 };
 export const kinds: Record<Kind, string> = {
@@ -83,6 +102,12 @@ export const categories: Record<string, string> = {
   PIPE_LEAK: "Протечка трубы",
   ELEVATOR: "Лифт",
   HEATING: "Отопление",
+  WATER_SUPPLY: "Водоснабжение",
+  ELECTRICITY: "Электроснабжение",
+  WASTE: "Вывоз мусора",
+  ROOF: "Крыша",
+  CAPITAL_REPAIR: "Капитальный ремонт",
+  OUTDOOR_LIGHTING: "Наружное освещение",
   OTHER: "Другое",
 };
 export const date = (s: string) =>
@@ -169,7 +194,19 @@ export interface HouseDataSource {
 export interface Organization {
   id: string;
   name: string;
+  type: string;
+  inn?: string;
+  ogrn?: string;
+  phone?: string;
+  website?: string;
+  source?: string;
+  sourceUrl?: string;
+  sourceSnapshotAt?: string;
+  active: boolean;
 }
+export interface MessageAttachment { id: string; messageId: string; name: string; mimeType: string; size: number; createdAt: string }
+export interface RequestMessage { id: string; requestId: string; type: "RESIDENT_PUBLIC" | "ORGANIZATION_PUBLIC" | "INTERNAL_NOTE" | "SYSTEM_EVENT" | "INFO_REQUEST"; text: string; authorId?: string; authorName: string; authorRole: string; createdAt: string; attachments: MessageAttachment[] }
+export interface ResponsibilityRule { id: string; houseId: string; organizationId: string; organizationName: string; category: string; place?: string; urgency?: string; role: "PRIMARY" | "CONTRACTOR" | "ESCALATION"; validFrom: string; validTo?: string; active: boolean; source: string; sourceUrl?: string; isDemo: boolean }
 export const adminTransitions: Partial<Record<Status, Status[]>> = {
   CREATED: ["ACCEPTED", "REJECTED"],
   SENT: ["ACCEPTED", "REJECTED"],

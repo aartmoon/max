@@ -5,6 +5,7 @@ import (
 	"errors"
 	"strings"
 	"testing"
+	"time"
 
 	"tvoydom/domain"
 	"tvoydom/integration"
@@ -136,7 +137,14 @@ func requestServiceForTest(repo *captureRepository, addresses fakeAddressProvide
 	houses := &fakeHouseRepository{byObjectID: map[string]domain.House{}, nextID: "42"}
 	return RequestService{
 		Repo: repo, Addresses: addresses, Houses: houses,
-		Classifier: RuleClassifier{}, Router: RuleRouter{},
+		Classifier: RuleClassifier{}, Routing: fixedRouteResolver{},
 		Notifications: NotificationService{Client: integration.MockMaxClient{}}, Housing: integration.MockHousingSystemGateway{},
 	}
+}
+
+type fixedRouteResolver struct{}
+
+func (fixedRouteResolver) Resolve(_ context.Context, q RouteQuery) (RouteDecision, error) {
+	rule := domain.ResponsibilityRule{ID: "1", HouseID: q.HouseID, OrganizationID: "1", OrganizationName: "УК «Тестовая»", Category: q.Category, Role: "PRIMARY", Active: true, ValidFrom: time.Unix(0, 0), Source: "test"}
+	return RouteDecision{Primary: &rule, Reason: "Тестовое правило"}, nil
 }

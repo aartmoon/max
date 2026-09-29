@@ -25,11 +25,15 @@ import {
   type Status,
   type UserRole,
 } from "../types";
+import RoutingAdmin from "../components/RoutingAdmin";
 
 const queueOptions: { value: QueueFilter; label: string }[] = [
   { value: "active", label: "Активные" },
   { value: "new", label: "Новые" },
   { value: "inWork", label: "В работе" },
+  { value: "unassigned", label: "Без исполнителя" },
+  { value: "mine", label: "Мои заявки" },
+  { value: "visitToday", label: "Визит сегодня" },
   { value: "overdue", label: "Просроченные" },
   { value: "done", label: "Завершённые" },
   { value: "all", label: "Все" },
@@ -95,7 +99,7 @@ export default function Admin() {
     setError("");
     setLoading(true);
     Promise.all([
-      adminApi.list(controller.signal),
+      adminApi.list(controller.signal, filters.queue === "unassigned" ? "UNASSIGNED" : filters.queue === "mine" ? "MINE" : filters.queue === "visitToday" ? "VISIT_TODAY" : filters.queue === "all" ? "ALL" : "ACTIVE"),
       adminApi.organizations(controller.signal),
       isAdmin ? adminApi.users(controller.signal) : Promise.resolve([]),
     ])
@@ -113,7 +117,7 @@ export default function Admin() {
         if (!controller.signal.aborted) setLoading(false);
       });
     return () => controller.abort();
-  }, [refresh, isAdmin]);
+  }, [refresh, isAdmin, filters.queue]);
 
   async function createOrganization(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -228,9 +232,9 @@ export default function Admin() {
       </section>
 
       <p className="admin-notice">
-        Доступ ограничен ролями: администратор видит все заявки, менеджер —
-        только заявки своей УК.
+        {user.roles.includes("admin") ? "Администратор видит все заявки." : "Показаны только заявки вашей организации, подрядчика или исполнителя."}
       </p>
+      <RoutingAdmin />
 
       {error && <ErrorMessage message={error} />}
       {!items ? (

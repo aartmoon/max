@@ -159,8 +159,35 @@ type AddressInfo struct {
 	IsActive       bool   `json:"isActive"`
 }
 type Organization struct {
-	ID   string `json:"id"`
-	Name string `json:"name"`
+	ID               string     `json:"id"`
+	Name             string     `json:"name"`
+	Type             string     `json:"type"`
+	INN              string     `json:"inn,omitempty"`
+	OGRN             string     `json:"ogrn,omitempty"`
+	ExternalGUID     string     `json:"externalGuid,omitempty"`
+	Phone            string     `json:"phone,omitempty"`
+	Website          string     `json:"website,omitempty"`
+	Source           string     `json:"source,omitempty"`
+	SourceURL        string     `json:"sourceUrl,omitempty"`
+	SourceSnapshotAt *time.Time `json:"sourceSnapshotAt,omitempty"`
+	Active           bool       `json:"active"`
+}
+
+type ResponsibilityRule struct {
+	ID               string     `json:"id"`
+	HouseID          string     `json:"houseId"`
+	OrganizationID   string     `json:"organizationId"`
+	OrganizationName string     `json:"organizationName"`
+	Category         string     `json:"category"`
+	Place            string     `json:"place,omitempty"`
+	Urgency          string     `json:"urgency,omitempty"`
+	Role             string     `json:"role"`
+	ValidFrom        time.Time  `json:"validFrom"`
+	ValidTo          *time.Time `json:"validTo,omitempty"`
+	Active           bool       `json:"active"`
+	Source           string     `json:"source"`
+	SourceURL        string     `json:"sourceUrl,omitempty"`
+	IsDemo           bool       `json:"isDemo"`
 }
 type UserApartment struct {
 	ID                  string `json:"id"`
@@ -174,26 +201,43 @@ type UserApartment struct {
 	IsDefault           bool   `json:"isDefault"`
 }
 type Request struct {
-	ID                        string    `json:"id"`
-	UserID                    string    `json:"userId"`
-	HouseID                   string    `json:"houseId"`
-	Description               string    `json:"description"`
-	ProblemType               string    `json:"problemType"`
-	ResponsibleOrganizationID string    `json:"responsibleOrganizationId"`
-	Status                    string    `json:"status"`
-	Deadline                  time.Time `json:"deadline"`
-	CreatedAt                 time.Time `json:"createdAt"`
-	Kind                      string    `json:"kind"`
-	Address                   string    `json:"address"`
-	HouseObjectID             string    `json:"houseObjectId"`
-	HouseObjectGUID           string    `json:"houseObjectGuid,omitempty"`
-	ApartmentObjectID         string    `json:"apartmentObjectId,omitempty"`
-	ApartmentObjectGUID       string    `json:"apartmentObjectGuid,omitempty"`
-	ResponsibleOrganization   string    `json:"responsibleOrganization"`
-	Text                      string    `json:"text"`
-	HasPhoto                  bool      `json:"hasPhoto"`
-	Photo                     []byte    `json:"-"`
-	PhotoType                 string    `json:"-"`
+	ID                        string     `json:"id"`
+	UserID                    string     `json:"userId"`
+	HouseID                   string     `json:"houseId"`
+	Description               string     `json:"description"`
+	ProblemType               string     `json:"problemType"`
+	ResponsibleOrganizationID string     `json:"responsibleOrganizationId"`
+	Status                    string     `json:"status"`
+	Deadline                  time.Time  `json:"deadline"`
+	CreatedAt                 time.Time  `json:"createdAt"`
+	Kind                      string     `json:"kind"`
+	Address                   string     `json:"address"`
+	HouseObjectID             string     `json:"houseObjectId"`
+	HouseObjectGUID           string     `json:"houseObjectGuid,omitempty"`
+	ApartmentObjectID         string     `json:"apartmentObjectId,omitempty"`
+	ApartmentObjectGUID       string     `json:"apartmentObjectGuid,omitempty"`
+	ResponsibleOrganization   string     `json:"responsibleOrganization"`
+	Text                      string     `json:"text"`
+	HasPhoto                  bool       `json:"hasPhoto"`
+	Photo                     []byte     `json:"-"`
+	PhotoType                 string     `json:"-"`
+	ProblemPlace              string     `json:"problemPlace"`
+	Urgency                   string     `json:"urgency"`
+	PrimaryOrganizationID     string     `json:"primaryOrganizationId,omitempty"`
+	PrimaryOrganization       string     `json:"primaryOrganization,omitempty"`
+	ContractorOrganizationID  string     `json:"contractorOrganizationId,omitempty"`
+	ContractorOrganization    string     `json:"contractorOrganization,omitempty"`
+	RoutingRuleID             string     `json:"routingRuleId,omitempty"`
+	RoutingReason             string     `json:"routingReason"`
+	RoutingSource             string     `json:"routingSource,omitempty"`
+	AssignedUserID            string     `json:"assignedUserId,omitempty"`
+	AssignedUserName          string     `json:"assignedUserName,omitempty"`
+	VisitStart                *time.Time `json:"visitStart,omitempty"`
+	VisitEnd                  *time.Time `json:"visitEnd,omitempty"`
+	ExecutorContact           string     `json:"executorContact,omitempty"`
+	FinalReport               string     `json:"finalReport,omitempty"`
+	AwaitingParty             string     `json:"awaitingParty"`
+	ReopenCount               int        `json:"reopenCount"`
 }
 type RequestStatusHistory struct {
 	Comment   string    `json:"comment"`
@@ -202,4 +246,51 @@ type RequestStatusHistory struct {
 	RequestID string    `json:"requestId"`
 	Status    string    `json:"status"`
 	CreatedAt time.Time `json:"createdAt"`
+}
+
+type MessageAttachment struct {
+	ID        string    `json:"id"`
+	MessageID string    `json:"messageId"`
+	Name      string    `json:"name"`
+	MIMEType  string    `json:"mimeType"`
+	Size      int64     `json:"size"`
+	CreatedAt time.Time `json:"createdAt"`
+}
+
+type MessageAttachmentContent struct {
+	MessageAttachment
+	RequestID string `json:"-"`
+	Data      []byte `json:"-"`
+}
+
+type RequestMessage struct {
+	ID          string              `json:"id"`
+	RequestID   string              `json:"requestId"`
+	Type        string              `json:"type"`
+	Text        string              `json:"text"`
+	AuthorID    string              `json:"authorId,omitempty"`
+	AuthorName  string              `json:"authorName"`
+	AuthorRole  string              `json:"authorRole"`
+	CreatedAt   time.Time           `json:"createdAt"`
+	Attachments []MessageAttachment `json:"attachments"`
+}
+
+type ResolutionFeedback struct {
+	ID        string    `json:"id"`
+	RequestID string    `json:"requestId"`
+	Solved    bool      `json:"solved"`
+	Rating    *int      `json:"rating,omitempty"`
+	Comment   string    `json:"comment"`
+	AuthorID  string    `json:"authorId"`
+	CreatedAt time.Time `json:"createdAt"`
+}
+
+type RequestAccess struct {
+	RequestID                string
+	OwnerUserID              string
+	PrimaryOrganizationID    string
+	ContractorOrganizationID string
+	AssigneeUserID           string
+	AssigneeOrganizationID   string
+	Status                   string
 }

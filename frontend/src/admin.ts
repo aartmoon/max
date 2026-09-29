@@ -14,6 +14,9 @@ export type QueueFilter =
   | "overdue"
   | "emergency"
   | "done"
+  | "unassigned"
+  | "mine"
+  | "visitToday"
   | "all";
 
 export type AdminSort = "priority" | "newest" | "deadline";
@@ -30,7 +33,7 @@ export interface AdminFilters {
 const hour = 60 * 60 * 1000;
 const day = 24 * hour;
 
-export const terminalStatuses: Status[] = ["RESOLVED", "REJECTED"];
+export const terminalStatuses: Status[] = ["CLOSED", "REJECTED"];
 export const newStatuses: Status[] = ["CREATED", "SENT"];
 export const inWorkStatuses: Status[] = ["ACCEPTED", "IN_PROGRESS"];
 
@@ -61,6 +64,15 @@ export function matchesQueue(
       return isEmergency(request);
     case "done":
       return isTerminal(request);
+    case "unassigned":
+      return !isTerminal(request) && !request.assignedUserId;
+    case "mine":
+      return !isTerminal(request) && Boolean(request.assignedUserId);
+    case "visitToday": {
+      if (!request.visitStart) return false;
+      const visit = new Date(request.visitStart);
+      return visit.toDateString() === now.toDateString();
+    }
     default:
       return true;
   }

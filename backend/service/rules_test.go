@@ -6,7 +6,7 @@ func TestClassification(t *testing.T) {
 	for _, tc := range []struct{ text, want string }{
 		{"ТРУБА течёт", "PIPE_LEAK"}, {"течет вода", "PIPE_LEAK"}, {"Протечка в подъезде", "PIPE_LEAK"},
 		{"Сломан лифт", "ELEVATOR"}, {"Нет отопления, холодно", "HEATING"}, {"Батарея холодная", "HEATING"},
-		{"Мусор во дворе", "OTHER"}, {"лифт и труба", "PIPE_LEAK"},
+		{"Мусор во дворе", "WASTE"}, {"лифт и труба", "PIPE_LEAK"},
 	} {
 		if got := (RuleClassifier{}).Classify(tc.text); got != tc.want {
 			t.Errorf("%q: got %s want %s", tc.text, got, tc.want)
