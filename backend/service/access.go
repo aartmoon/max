@@ -37,7 +37,6 @@ func (s AccessService) Require(ctx context.Context, requestID string, capability
 		if capability == CapabilityRead || capability == CapabilityPublic {
 			return access, nil
 		}
-		return access, domain.ErrForbidden
 	}
 	if HasRole(user, "manager") && user.OrganizationID != nil {
 		organizationID := *user.OrganizationID

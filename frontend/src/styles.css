@@ -1316,6 +1316,12 @@ select:focus {
 .request-message.info_request { background: #eef4ff; border: 1px solid #bed1ff; }
 .request-message.system_event { background: transparent; border-left: 3px solid #aeb8c6; border-radius: 0; color: #596474; }
 .request-message a { display: block; margin-top: 8px; }
+.message-form fieldset { display: grid; gap: 12px; }
+.message-form label { margin: 0; }
+.message-form textarea { margin-bottom: 4px; }
+.message-form .message-files { display: grid; gap: 8px; }
+.message-form small { margin: -4px 0 4px; }
+.message-form .button { justify-self: start; }
 .decision-buttons { display: grid; grid-template-columns: 1fr; gap: 8px; }
 .routing-admin summary { cursor: pointer; min-height: 44px; display: flex; align-items: center; }
 .routing-admin-grid { display: grid; gap: 16px; margin-top: 16px; }

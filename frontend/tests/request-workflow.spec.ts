@@ -43,10 +43,45 @@ test("organization sees internal notes and message retry preserves text", async 
   });
   await page.goto("/max/admin/requests/77");
   await expect(page.getByText("Позвонить исполнителю")).toBeVisible();
+  const helperBox = await page.getByText("До 5 файлов, каждый до 5 МБ").boundingBox();
+  const sendBox = await page.getByRole("button", { name: "Отправить" }).boundingBox();
+  expect(helperBox).not.toBeNull();
+  expect(sendBox).not.toBeNull();
+  expect(sendBox!.y).toBeGreaterThan(helperBox!.y + helperBox!.height);
   await page.getByLabel("Новое сообщение").fill("Ответ жителю");
   await page.getByRole("button", { name: "Отправить" }).click();
   await expect(page.getByRole("alert")).toContainText("Не удалось отправить");
+  await expect(page.getByRole("button", { name: "Повторить загрузку" })).toBeHidden();
   await expect(page.getByLabel("Новое сообщение")).toHaveValue("Ответ жителю");
+});
+
+test("dual-role resident sees a sent message even if refresh fails", async ({ page }) => {
+  await common(page, { id: "1", email: "resident-admin@example.test", name: "Житель", roles: ["resident", "admin"] });
+  const request = { ...baseRequest, status: "IN_PROGRESS", finalReport: "" };
+  let messageLoads = 0;
+  let submitted = false;
+  await page.route("**/max/api/requests/77", (route) => route.fulfill({ contentType: "application/json", body: JSON.stringify(request) }));
+  await page.route("**/max/api/requests/77/history", (route) => route.fulfill({ contentType: "application/json", body: "[]" }));
+  await page.route("**/max/api/requests/77/messages", (route) => {
+    if (route.request().method() === "POST") {
+      expect(route.request().postData()).toContain("RESIDENT_PUBLIC");
+      submitted = true;
+      return route.fulfill({ status: 201, contentType: "application/json", body: JSON.stringify({ id: "10", requestId: "77", type: "RESIDENT_PUBLIC", text: "Добрый день", authorName: "Житель", authorRole: "resident", createdAt: "2026-09-29T12:00:00Z", attachments: [] }) });
+    }
+    messageLoads += 1;
+    return submitted
+      ? route.fulfill({ status: 503, contentType: "application/json", body: JSON.stringify({ error: "Не удалось обновить переписку" }) })
+      : route.fulfill({ contentType: "application/json", body: "[]" });
+  });
+
+  await page.goto("/max/requests/77");
+  await expect(page.getByText("Сообщений пока нет.")).toBeVisible();
+  const loadsBeforeSubmit = messageLoads;
+  await page.getByLabel("Новое сообщение").fill("Добрый день");
+  await page.getByRole("button", { name: "Отправить" }).click();
+  await expect(page.getByText("Добрый день", { exact: true })).toBeVisible();
+  await expect(page.getByRole("alert")).toBeHidden();
+  expect(messageLoads).toBe(loadsBeforeSubmit);
 });
 
 test("resident API error does not expose a foreign request", async ({ page }) => {

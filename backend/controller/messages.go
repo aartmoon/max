@@ -10,15 +10,27 @@ import (
 )
 
 func (h Handler) messageRoutes(mux *http.ServeMux) {
-	list := h.withID(h.requireUser(func(w http.ResponseWriter, r *http.Request, user domain.User) {
-		items, err := (service.MessageService{Repo: h.Repo, Access: service.AccessService{Repo: h.Repo}}).List(r.Context(), r.PathValue("id"))
-		respond(w, items, err)
-	}))
-	create := h.withID(h.requireUser(func(w http.ResponseWriter, r *http.Request, user domain.User) { h.createMessage(w, r, user) }))
-	mux.HandleFunc("GET /api/requests/{id}/messages", list)
-	mux.HandleFunc("POST /api/requests/{id}/messages", create)
-	mux.HandleFunc("GET /api/organization/requests/{id}/messages", list)
-	mux.HandleFunc("POST /api/organization/requests/{id}/messages", create)
+	list := func(organization bool) http.HandlerFunc {
+		return h.withID(h.requireUser(func(w http.ResponseWriter, r *http.Request, _ domain.User) {
+			messageService := service.MessageService{Repo: h.Repo, Access: service.AccessService{Repo: h.Repo}}
+			if organization {
+				items, err := messageService.ListOrganization(r.Context(), r.PathValue("id"))
+				respond(w, items, err)
+				return
+			}
+			items, err := messageService.List(r.Context(), r.PathValue("id"))
+			respond(w, items, err)
+		}))
+	}
+	create := func(organization bool) http.HandlerFunc {
+		return h.withID(h.requireUser(func(w http.ResponseWriter, r *http.Request, user domain.User) {
+			h.createMessage(w, r, user, organization)
+		}))
+	}
+	mux.HandleFunc("GET /api/requests/{id}/messages", list(false))
+	mux.HandleFunc("POST /api/requests/{id}/messages", create(false))
+	mux.HandleFunc("GET /api/organization/requests/{id}/messages", list(true))
+	mux.HandleFunc("POST /api/organization/requests/{id}/messages", create(true))
 	mux.HandleFunc("GET /api/request-attachments/{id}", h.withID(h.requireUser(func(w http.ResponseWriter, r *http.Request, user domain.User) {
 		item, err := (service.MessageService{Repo: h.Repo, Access: service.AccessService{Repo: h.Repo}}).Attachment(r.Context(), r.PathValue("id"))
 		if err != nil {
@@ -33,7 +45,7 @@ func (h Handler) messageRoutes(mux *http.ServeMux) {
 	})))
 }
 
-func (h Handler) createMessage(w http.ResponseWriter, r *http.Request, user domain.User) {
+func (h Handler) createMessage(w http.ResponseWriter, r *http.Request, user domain.User, organization bool) {
 	r.Body = http.MaxBytesReader(w, r.Body, 21<<20)
 	if err := r.ParseMultipartForm(21 << 20); err != nil {
 		badBody(w, err)
@@ -42,7 +54,11 @@ func (h Handler) createMessage(w http.ResponseWriter, r *http.Request, user doma
 	if r.MultipartForm != nil {
 		defer r.MultipartForm.RemoveAll()
 	}
-	in := service.NewMessageInput{RequestID: r.PathValue("id"), Type: r.FormValue("type"), Text: r.FormValue("text")}
+	in := service.NewMessageInput{
+		RequestID: r.PathValue("id"),
+		Type:      r.FormValue("type"),
+		Text:      r.FormValue("text"),
+	}
 	if r.MultipartForm != nil {
 		for _, header := range r.MultipartForm.File["attachments"] {
 			file, err := header.Open()
@@ -59,7 +75,14 @@ func (h Handler) createMessage(w http.ResponseWriter, r *http.Request, user doma
 			in.Attachments = append(in.Attachments, service.NewAttachment{Name: header.Filename, Data: data})
 		}
 	}
-	message, err := (service.MessageService{Repo: h.Repo, Access: service.AccessService{Repo: h.Repo}}).Create(r.Context(), in)
+	messageService := service.MessageService{Repo: h.Repo, Access: service.AccessService{Repo: h.Repo}}
+	var message domain.RequestMessage
+	var err error
+	if organization {
+		message, err = messageService.CreateOrganization(r.Context(), in)
+	} else {
+		message, err = messageService.Create(r.Context(), in)
+	}
 	if err != nil {
 		respond(w, nil, err)
 		return
@@ -67,12 +90,12 @@ func (h Handler) createMessage(w http.ResponseWriter, r *http.Request, user doma
 	if message.Type != "INTERNAL_NOTE" {
 		if request, getErr := h.Repo.Get(r.Context(), in.RequestID, ""); getErr == nil {
 			h.Service.Notifications.Notify(r.Context(), request)
-			if service.HasRole(user, "resident") {
-				h.Service.MAXNotifications.NotifyManagers(r.Context(), request, service.MAXEvent{Kind: service.MAXEventMessage, Text: message.Text})
-				h.Service.NotifyManagers(r.Context(), request)
-			} else {
+			if organization {
 				h.Service.MAXNotifications.NotifyOwner(r.Context(), request, service.MAXEvent{Kind: service.MAXEventMessage, Text: message.Text})
 				h.Service.NotifyRequestOwnerStatusChanged(r.Context(), request, "Новое сообщение по заявке")
+			} else {
+				h.Service.MAXNotifications.NotifyManagers(r.Context(), request, service.MAXEvent{Kind: service.MAXEventMessage, Text: message.Text})
+				h.Service.NotifyManagers(r.Context(), request)
 			}
 		}
 	}

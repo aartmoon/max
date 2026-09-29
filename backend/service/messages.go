@@ -35,25 +35,63 @@ type MessageService struct {
 }
 
 func (s MessageService) List(ctx context.Context, requestID string) ([]domain.RequestMessage, error) {
-	if _, err := s.Access.Require(ctx, requestID, CapabilityRead); err != nil {
+	user, ok := CurrentUser(ctx)
+	if !ok {
+		return nil, domain.ErrUnauthorized
+	}
+	access, err := s.Access.Require(ctx, requestID, CapabilityRead)
+	if err != nil {
 		return nil, err
 	}
-	user, _ := CurrentUser(ctx)
-	return s.Repo.ListMessages(ctx, requestID, HasRole(user, "manager") || HasRole(user, "admin"))
+	if !HasRole(user, "resident") || user.ID != access.OwnerUserID {
+		return nil, domain.ErrForbidden
+	}
+	return s.Repo.ListMessages(ctx, requestID, false)
+}
+
+func (s MessageService) ListOrganization(ctx context.Context, requestID string) ([]domain.RequestMessage, error) {
+	user, ok := CurrentUser(ctx)
+	if !ok {
+		return nil, domain.ErrUnauthorized
+	}
+	if !HasRole(user, "manager") && !HasRole(user, "admin") {
+		return nil, domain.ErrForbidden
+	}
+	if _, err := s.Access.Require(ctx, requestID, CapabilityInternal); err != nil {
+		return nil, err
+	}
+	return s.Repo.ListMessages(ctx, requestID, true)
 }
 
 func (s MessageService) Create(ctx context.Context, in NewMessageInput) (domain.RequestMessage, error) {
+	return s.create(ctx, in, false)
+}
+
+func (s MessageService) CreateOrganization(ctx context.Context, in NewMessageInput) (domain.RequestMessage, error) {
+	return s.create(ctx, in, true)
+}
+
+func (s MessageService) create(ctx context.Context, in NewMessageInput, organization bool) (domain.RequestMessage, error) {
 	user, ok := CurrentUser(ctx)
 	if !ok {
 		return domain.RequestMessage{}, domain.ErrUnauthorized
 	}
-	access, err := s.Access.Require(ctx, in.RequestID, CapabilityPublic)
-	isStaff := HasRole(user, "manager") || HasRole(user, "admin")
-	if isStaff {
-		access, err = s.Access.Require(ctx, in.RequestID, CapabilityInternal)
+	if organization && !HasRole(user, "manager") && !HasRole(user, "admin") {
+		return domain.RequestMessage{}, domain.ErrForbidden
 	}
+	if !organization && !HasRole(user, "resident") {
+		return domain.RequestMessage{}, domain.ErrForbidden
+	}
+	capability := CapabilityPublic
+	if organization {
+		capability = CapabilityInternal
+	}
+	access, err := s.Access.Require(ctx, in.RequestID, capability)
 	if err != nil {
 		return domain.RequestMessage{}, err
+	}
+	if !organization && user.ID != access.OwnerUserID {
+		return domain.RequestMessage{}, domain.ErrForbidden
 	}
 	if access.Status == "CLOSED" {
 		return domain.RequestMessage{}, domain.ErrConflict
@@ -85,15 +123,15 @@ func (s MessageService) Create(ctx context.Context, in NewMessageInput) (domain.
 		return domain.RequestMessage{}, domain.ValidationError{Message: "Общий размер вложений не должен превышать 20 МБ"}
 	}
 	role := "resident"
-	if HasRole(user, "admin") {
+	if organization && HasRole(user, "admin") {
 		role = "admin"
-	} else if HasRole(user, "manager") {
+	} else if organization && HasRole(user, "manager") {
 		role = "manager"
 	}
-	if role == "resident" && in.Type != "RESIDENT_PUBLIC" {
+	if !organization && in.Type != "RESIDENT_PUBLIC" {
 		return domain.RequestMessage{}, domain.ErrForbidden
 	}
-	if role != "resident" && in.Type != "ORGANIZATION_PUBLIC" && in.Type != "INTERNAL_NOTE" && in.Type != "INFO_REQUEST" {
+	if organization && in.Type != "ORGANIZATION_PUBLIC" && in.Type != "INTERNAL_NOTE" && in.Type != "INFO_REQUEST" {
 		return domain.RequestMessage{}, domain.ValidationError{Message: "Неизвестный тип сообщения"}
 	}
 	awaiting := "NONE"

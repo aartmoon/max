@@ -26,6 +26,7 @@ func TestRequestAccessSeparatesOrganizations(t *testing.T) {
 		{"other resident", domain.User{ID: "2", Roles: []string{"resident"}}, CapabilityRead, false},
 		{"primary manager", domain.User{ID: "3", Roles: []string{"manager"}, OrganizationID: stringPointer("10")}, CapabilityManage, true},
 		{"contractor manager", domain.User{ID: "4", Roles: []string{"manager"}, OrganizationID: stringPointer("20")}, CapabilityInternal, true},
+		{"owner who is also primary manager", domain.User{ID: "1", Roles: []string{"resident", "manager"}, OrganizationID: stringPointer("10")}, CapabilityInternal, true},
 		{"foreign manager", domain.User{ID: "5", Roles: []string{"manager"}, OrganizationID: stringPointer("99")}, CapabilityRead, false},
 		{"admin", domain.User{ID: "6", Roles: []string{"admin"}}, CapabilityManage, true},
 	} {
