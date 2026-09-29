@@ -29,7 +29,7 @@ func TestStartRepliesWithWebsiteAndMiniApp(t *testing.T) {
 					t.Fatal(err)
 				}
 				buttons := body.Attachments[0].Payload.Buttons
-				if body.Text == "" || len(buttons) != 2 || buttons[0][0].Type != "open_app" || buttons[0][0].WebApp != "tvoydom_bot" || buttons[1][0].URL != "https://home.example.org" {
+				if body.Text == "" || len(buttons) != 1 || buttons[0][0].Type != "open_app" || buttons[0][0].WebApp != "tvoydom_bot" {
 					t.Errorf("unexpected greeting %+v", body)
 				}
 				w.Write([]byte(`{"message":{"body":{"mid":"1"}}}`))
@@ -78,11 +78,19 @@ func TestPollingMarkerAndErrors(t *testing.T) {
 	}
 }
 
-func TestWebsiteOnlyAndSettings(t *testing.T) {
+func TestGreetingWithoutConfiguredMiniAppHasNoFallbackButton(t *testing.T) {
 	msg := (Bot{AppURL: "https://home.example.org"}).greeting()
-	if len(msg.Attachments[0].Payload.Buttons) != 1 || msg.Attachments[0].Payload.Buttons[0][0].Type != "link" {
+	if len(msg.Attachments) != 0 {
 		t.Fatal(msg)
 	}
+	for _, u := range []string{"", "http://example.org", "https://localhost:3000", "https://127.0.0.1", "https://10.0.0.1", "https://user:pass@example.org"} {
+		if ValidateSettings(u, "") == nil {
+			t.Errorf("accepted %s", u)
+		}
+	}
+}
+
+func TestSettings(t *testing.T) {
 	for _, u := range []string{"", "http://example.org", "https://localhost:3000", "https://127.0.0.1", "https://10.0.0.1", "https://user:pass@example.org"} {
 		if ValidateSettings(u, "") == nil {
 			t.Errorf("accepted %s", u)

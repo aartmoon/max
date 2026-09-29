@@ -5,23 +5,32 @@ window.WebApp={initData:'start_param=house&hash=test',initDataUnsafe:{start_para
 ready(){window.bridgeCalls.ready++;window.bridgeCalls.rendered=!!document.querySelector('main')},
 BackButton:{show(){window.bridgeCalls.visible=true},hide(){window.bridgeCalls.visible=false},onClick(fn){window.bridgeCalls.handlers.push(fn)},offClick(fn){window.bridgeCalls.handlers=window.bridgeCalls.handlers.filter(x=>x!==fn)}},
 enableClosingConfirmation(){window.bridgeCalls.closing=true},disableClosingConfirmation(){window.bridgeCalls.closing=false}};`;
-test.beforeEach(async ({ page }) => {
+async function authenticatedResident(page: import("@playwright/test").Page) {
   await page.route("**/max/api/me", (route) =>
     route.fulfill({
       contentType: "application/json",
       body: JSON.stringify({ id: "1", email: "resident@example.test", name: "Житель", roles: ["resident"] }),
     }),
   );
-});
+}
 test("MAX SDK loads, ready runs after render and native back works for launch route", async ({
   page,
 }) => {
-  let linked = 0;
-  await page.route("**/max/api/me/max-account", async (route) => {
-    linked++;
+  await page.route("**/max/api/me", (route) =>
+    route.fulfill({ status: 401, contentType: "application/json", body: '{"error":"требуется вход"}' }),
+  );
+  let maxLogins = 0;
+  await page.route("**/max/api/auth/max", async (route) => {
+    maxLogins++;
     expect((await route.request().postDataJSON()).initData).toBe("start_param=house&hash=test");
-    await route.fulfill({ contentType: "application/json", body: '{"ok":true}' });
+    await route.fulfill({
+      contentType: "application/json",
+      body: JSON.stringify({ id: "1", name: "Житель MAX", roles: ["resident"] }),
+    });
   });
+  await page.route("**/max/api/me/max-account", (route) =>
+    route.fulfill({ contentType: "application/json", body: '{"ok":true}' }),
+  );
   await page.route(sdk, (route) =>
     route.fulfill({ contentType: "application/javascript", body: stub }),
   );
@@ -30,7 +39,7 @@ test("MAX SDK loads, ready runs after render and native back works for launch ro
   await expect
     .poll(() => page.evaluate(() => (window as any).bridgeCalls?.ready))
     .toBe(1);
-  await expect.poll(() => linked).toBe(1);
+  await expect.poll(() => maxLogins).toBe(1);
   expect(await page.evaluate(() => (window as any).bridgeCalls.rendered)).toBe(
     true,
   );
@@ -67,6 +76,7 @@ test("MAX SDK loads, ready runs after render and native back works for launch ro
   ).toBe(0);
 });
 test("website works if SDK is unavailable", async ({ page }) => {
+  await authenticatedResident(page);
   let linked = 0;
   await page.route("**/max/api/me/max-account", (route) => {
     linked++;
@@ -86,6 +96,7 @@ test("website works if SDK is unavailable", async ({ page }) => {
 test("late SDK is used and unknown launch parameter cannot navigate externally", async ({
   page,
 }) => {
+  await authenticatedResident(page);
   let release!: () => void;
   const gate = new Promise<void>((resolve) => {
     release = resolve;

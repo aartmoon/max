@@ -16,6 +16,7 @@ import (
 type Identity struct {
 	UserID int64
 	ChatID int64
+	Name   string
 }
 
 func ValidateLaunchData(raw, token string, now time.Time) (Identity, error) {
@@ -67,7 +68,10 @@ func ValidateLaunchData(raw, token string, now time.Time) (Identity, error) {
 		return Identity{}, invalid
 	}
 	var user struct {
-		ID int64 `json:"id"`
+		ID        int64  `json:"id"`
+		FirstName string `json:"first_name"`
+		LastName  string `json:"last_name"`
+		Username  string `json:"username"`
 	}
 	var chat struct {
 		ID   int64  `json:"id"`
@@ -76,5 +80,12 @@ func ValidateLaunchData(raw, token string, now time.Time) (Identity, error) {
 	if json.Unmarshal([]byte(values.Get("user")), &user) != nil || json.Unmarshal([]byte(values.Get("chat")), &chat) != nil || user.ID <= 0 || chat.ID <= 0 || chat.Type != "DIALOG" {
 		return Identity{}, invalid
 	}
-	return Identity{UserID: user.ID, ChatID: chat.ID}, nil
+	name := strings.TrimSpace(user.FirstName + " " + user.LastName)
+	if name == "" {
+		name = strings.TrimSpace(user.Username)
+	}
+	if name == "" {
+		name = "Пользователь MAX"
+	}
+	return Identity{UserID: user.ID, ChatID: chat.ID, Name: name}, nil
 }

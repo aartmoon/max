@@ -36,12 +36,11 @@ func ValidateSettings(appURL, username string) error {
 	return nil
 }
 func (b Bot) greeting() Message {
-	buttons := [][]Button{}
+	message := Message{Text: "Добро пожаловать в «Твой дом»!\n\nЗдесь можно оставить заявку в управляющую компанию, задать вопрос и следить за решением проблем дома.\n\nОткройте приложение по кнопке ниже."}
 	if b.Username != "" {
-		buttons = append(buttons, []Button{{Type: "open_app", Text: "Открыть «Твой дом»", WebApp: b.Username}})
+		message.Attachments = []Attachment{{Type: "inline_keyboard", Payload: Keyboard{Buttons: [][]Button{{{Type: "open_app", Text: "Открыть «Твой дом»", WebApp: b.Username}}}}}}
 	}
-	buttons = append(buttons, []Button{{Type: "link", Text: "Перейти на сайт", URL: b.AppURL}})
-	return Message{Text: "Добро пожаловать в «Твой дом»!\n\nЗдесь можно оставить заявку в управляющую компанию, задать вопрос и следить за решением проблем дома.\n\nОткройте приложение по кнопке ниже.", Attachments: []Attachment{{Type: "inline_keyboard", Payload: Keyboard{Buttons: buttons}}}}
+	return message
 }
 func (b Bot) Handle(ctx context.Context, u Update) error {
 	chatID, userID := u.ChatID, u.User.ID
