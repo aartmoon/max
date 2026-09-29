@@ -46,11 +46,27 @@ const requests = [
     responsibleOrganizationId: "1",
     responsibleOrganization: "УК «Тестовая»",
     status: "RESOLVED",
-    deadline: hoursFromNow(-48),
+    deadline: hoursFromNow(48),
     createdAt: hoursFromNow(-96),
     address: "г. Москва, ул. Тестовая, д. 1",
     kind: "QUESTION",
     text: "Закрытый вопрос про уборку.",
+    hasPhoto: false,
+  },
+  {
+    id: "104",
+    userId: "1",
+    houseId: "1",
+    description: "Закрытая заявка на освещение",
+    problemType: "OTHER",
+    responsibleOrganizationId: "1",
+    responsibleOrganization: "УК «Тестовая»",
+    status: "CLOSED",
+    deadline: hoursFromNow(-72),
+    createdAt: hoursFromNow(-120),
+    address: "г. Москва, ул. Тестовая, д. 1",
+    kind: "PROBLEM",
+    text: "Освещение восстановлено.",
     hasPhoto: false,
   },
 ];
@@ -78,9 +94,13 @@ test.beforeEach(async ({ page }) => {
 test("admin queue prioritizes work and keeps filters in the URL", async ({
   page,
 }) => {
-  await page.route("**/max/api/admin/requests", (route) =>
-    route.fulfill({ contentType: "application/json", body: JSON.stringify(requests) }),
-  );
+  await page.route(/\/max\/api\/admin\/requests\?/, (route) => {
+    const queue = new URL(route.request().url()).searchParams.get("queue");
+    const result = queue === "ALL"
+      ? requests
+      : requests.filter(({ status }) => status !== "CLOSED" && status !== "REJECTED");
+    return route.fulfill({ contentType: "application/json", body: JSON.stringify(result) });
+  });
   await page.route("**/max/api/organizations", (route) =>
     route.fulfill({
       contentType: "application/json",
@@ -93,10 +113,18 @@ test("admin queue prioritizes work and keeps filters in the URL", async ({
 
   await page.goto("/max/admin");
 
-  await expect(page.locator(".admin-request-card")).toHaveCount(2);
+  await expect(page.locator(".admin-request-card")).toHaveCount(3);
   await expect(page.locator(".admin-request-card").first()).toContainText(
     "Сильная протечка",
   );
+  await expect(page.locator(".admin-request-list")).toContainText("Когда будет уборка двора");
+  await expect(page.getByRole("button", { name: /Завершены.*решены или закрыты/ })).toContainText("1");
+  await page.getByRole("button", { name: "Завершённые" }).click();
+  await expect(page.locator(".admin-request-card")).toHaveCount(1);
+  await expect(page.locator(".admin-request-list")).toContainText("Закрытая заявка на освещение");
+  await expect(page.locator(".admin-request-list")).not.toContainText("Когда будет уборка двора");
+  await page.getByRole("button", { name: "Активные", exact: true }).click();
+  await expect(page.locator(".admin-request-card")).toHaveCount(3);
   await expect(page.locator(".bottom-nav")).toHaveCount(0);
   await page.screenshot({
     path: "test-results/admin-queue-mobile.png",
@@ -118,7 +146,7 @@ test("admin queue prioritizes work and keeps filters in the URL", async ({
 
   await page.getByRole("button", { name: "Сбросить фильтры" }).click();
   await expect(page).toHaveURL(/\/max\/admin$/);
-  await expect(page.locator(".admin-request-card")).toHaveCount(2);
+  await expect(page.locator(".admin-request-card")).toHaveCount(3);
 
   for (const width of [320, 1280]) {
     await page.setViewportSize({ width, height: 900 });
@@ -193,11 +221,48 @@ test("admin must describe the result before resolving a request", async ({
     .fill("  Лифт запущен, проверка выполнена.  ");
   await page.getByRole("button", { name: "Сохранить статус" }).click();
 
-  await expect(page.locator(".current-status-row")).toContainText("Решено");
+  await expect(page.locator(".current-status-row")).toContainText("Ожидает подтверждения");
+  await expect(page.getByText("Работы выполнены. Ожидается подтверждение жителя.")).toBeVisible();
   expect(submittedBody).toEqual({
     status: "RESOLVED",
     comment: "Лифт запущен, проверка выполнена.",
   });
+
+  await page.route(/\/max\/api\/admin\/requests\?/, (route) =>
+    route.fulfill({ contentType: "application/json", body: JSON.stringify([current]) }),
+  );
+  await page.route("**/max/api/organizations", (route) =>
+    route.fulfill({ contentType: "application/json", body: "[]" }),
+  );
+  await page.getByRole("link", { name: "← Заявки жителей" }).click();
+  await expect(page.locator(".admin-request-card")).toContainText("Не работает лифт");
+  await expect(page.getByRole("button", { name: /Завершены.*решены или закрыты/ })).toContainText("0");
+  await page.getByRole("button", { name: "Завершённые" }).click();
+  await expect(page.locator(".admin-request-card")).toHaveCount(0);
+
+  await page.route("**/max/api/requests/102", (route) =>
+    route.fulfill({ contentType: "application/json", body: JSON.stringify(current) }),
+  );
+  await page.route("**/max/api/requests/102/history", (route) =>
+    route.fulfill({ contentType: "application/json", body: JSON.stringify(history) }),
+  );
+  await page.route("**/max/api/requests/102/messages", (route) =>
+    route.fulfill({ contentType: "application/json", body: "[]" }),
+  );
+  await page.route("**/max/api/requests/102/resolution", (route) => {
+    expect(route.request().postDataJSON()).toMatchObject({ solved: true });
+    current = { ...current, status: "CLOSED" };
+    return route.fulfill({ contentType: "application/json", body: JSON.stringify(current) });
+  });
+  await page.goto("/max/requests/102");
+  await page.getByRole("button", { name: "Подтвердить решение" }).click();
+  await expect(page.getByText("Закрыто")).toBeVisible();
+
+  await page.goto("/max/admin");
+  await expect(page.getByRole("button", { name: /Завершены.*решены или закрыты/ })).toContainText("1");
+  await expect(page.locator(".admin-request-card")).toHaveCount(0);
+  await page.getByRole("button", { name: "Завершённые" }).click();
+  await expect(page.locator(".admin-request-card")).toContainText("Не работает лифт");
 });
 
 test("admin manages organizations and user access", async ({ page }) => {
@@ -220,7 +285,7 @@ test("admin manages organizations and user access", async ({ page }) => {
   let rolePatch: unknown;
   let organizationPatch: unknown;
 
-  await page.route("**/max/api/admin/requests", (route) =>
+  await page.route(/\/max\/api\/admin\/requests\?/, (route) =>
     route.fulfill({ contentType: "application/json", body: JSON.stringify(emptyRequests) }),
   );
   await page.route("**/max/api/organizations", (route) =>
