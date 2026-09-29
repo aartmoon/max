@@ -101,7 +101,7 @@ export function loadMaxBridge(): Promise<MaxBridge> {
   });
   return sdkPromise;
 }
-export function launchRoute(startParam: string): string | undefined {
+export function launchRoute(startParam: string, organizationUser = false): string | undefined {
   // A fixed allowlist: launch parameters cannot redirect to arbitrary URLs/admin.
   switch (startParam) {
     case "house":
@@ -111,6 +111,10 @@ export function launchRoute(startParam: string): string | undefined {
     case "new_request":
       return "/requests/new";
     default:
+      if (/^request_[1-9][0-9]*$/.test(startParam)) {
+        const id = startParam.slice("request_".length);
+        return organizationUser ? `/admin/requests/${id}` : `/requests/${id}`;
+      }
       return undefined;
   }
 }

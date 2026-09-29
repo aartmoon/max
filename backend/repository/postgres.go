@@ -44,6 +44,9 @@ var arbatResponsibilitySnapshotMigration string
 //go:embed migrations/011_arbat_capital_repair.sql
 var arbatCapitalRepairMigration string
 
+//go:embed migrations/012_max_accounts.sql
+var maxAccountsMigration string
+
 func (p Postgres) Migrate(ctx context.Context) error {
 	tx, err := p.Pool.Begin(ctx)
 	if err != nil {
@@ -173,6 +176,17 @@ func (p Postgres) Migrate(ctx context.Context) error {
 			return err
 		}
 		if _, err = tx.Exec(ctx, `INSERT INTO schema_migrations VALUES(11)`); err != nil {
+			return err
+		}
+	}
+	if err = tx.QueryRow(ctx, `SELECT EXISTS(SELECT 1 FROM schema_migrations WHERE version=12)`).Scan(&exists); err != nil {
+		return err
+	}
+	if !exists {
+		if _, err = tx.Exec(ctx, maxAccountsMigration); err != nil {
+			return err
+		}
+		if _, err = tx.Exec(ctx, `INSERT INTO schema_migrations VALUES(12)`); err != nil {
 			return err
 		}
 	}

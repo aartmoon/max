@@ -18,6 +18,7 @@ import (
 type Handler struct {
 	Service           service.RequestService
 	Auth              service.AuthService
+	MAXAccounts       service.MAXAccountService
 	Houses            service.HouseService
 	Addresses         service.AddressProvider
 	Repo              repository.Postgres
@@ -42,6 +43,21 @@ func (h Handler) Routes() http.Handler {
 	mux.HandleFunc("POST /api/auth/logout", h.logout)
 	mux.HandleFunc("GET /api/me", h.requireUser(func(w http.ResponseWriter, r *http.Request, user domain.User) {
 		writeJSON(w, 200, user)
+	}))
+	mux.HandleFunc("POST /api/me/max-account", h.requireUser(func(w http.ResponseWriter, r *http.Request, user domain.User) {
+		r.Body = http.MaxBytesReader(w, r.Body, 16384)
+		var in struct {
+			InitData string `json:"initData"`
+		}
+		if err := decodeJSON(r, &in); err != nil {
+			badBody(w, err)
+			return
+		}
+		if err := h.MAXAccounts.Link(r.Context(), user.ID, in.InitData); err != nil {
+			respond(w, nil, err)
+			return
+		}
+		writeJSON(w, 200, map[string]bool{"ok": true})
 	}))
 	mux.HandleFunc("GET /api/me/apartments", h.requireUser(func(w http.ResponseWriter, r *http.Request, user domain.User) {
 		v, e := h.Repo.UserApartments(r.Context(), user.ID)

@@ -147,6 +147,7 @@ func (h Handler) adminRoutes(mux *http.ServeMux) {
 		v, e := svc.SetStatus(r.Context(), r.PathValue("id"), in.Status, service.ResolveInput{FinalReport: in.Comment})
 		if e == nil {
 			h.Service.Notifications.Notify(r.Context(), v)
+			h.Service.MAXNotifications.NotifyOwner(r.Context(), v, service.MAXEvent{Kind: service.MAXEventStatus, Text: in.Comment})
 			h.Service.NotifyRequestOwnerStatusChanged(r.Context(), v, in.Comment)
 		}
 		respond(w, v, e)

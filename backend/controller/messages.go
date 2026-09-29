@@ -68,8 +68,10 @@ func (h Handler) createMessage(w http.ResponseWriter, r *http.Request, user doma
 		if request, getErr := h.Repo.Get(r.Context(), in.RequestID, ""); getErr == nil {
 			h.Service.Notifications.Notify(r.Context(), request)
 			if service.HasRole(user, "resident") {
+				h.Service.MAXNotifications.NotifyManagers(r.Context(), request, service.MAXEvent{Kind: service.MAXEventMessage, Text: message.Text})
 				h.Service.NotifyManagers(r.Context(), request)
 			} else {
+				h.Service.MAXNotifications.NotifyOwner(r.Context(), request, service.MAXEvent{Kind: service.MAXEventMessage, Text: message.Text})
 				h.Service.NotifyRequestOwnerStatusChanged(r.Context(), request, "Новое сообщение по заявке")
 			}
 		}

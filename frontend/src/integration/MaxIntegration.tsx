@@ -13,6 +13,8 @@ import {
   launchRoute,
   type MaxBridge,
 } from "./max";
+import { authApi } from "../api";
+import { useAuth } from "../auth";
 const BridgeContext = createContext<MaxBridge>(browserBridge);
 export const useMaxBridge = () => useContext(BridgeContext);
 function parentRoute(path: string): string {
@@ -27,6 +29,11 @@ export function MaxIntegration({ children }: { children: ReactNode }) {
     navigate = useNavigate();
   const launchHandled = useRef(false);
   const initialLocation = useRef(location.key);
+  const linkedInitData = useRef("");
+  const { user } = useAuth();
+  const organizationUser = user.roles?.some(
+    (role) => role === "manager" || role === "admin",
+  );
   useEffect(() => {
     let active = true;
     loadMaxBridge().then((value) => {
@@ -41,7 +48,10 @@ export function MaxIntegration({ children }: { children: ReactNode }) {
     bridge.ready();
     if (!launchHandled.current) {
       launchHandled.current = true;
-      const target = launchRoute(bridge.launchData().startParam);
+      const target = launchRoute(
+        bridge.launchData().startParam,
+        organizationUser,
+      );
       // A late SDK must not interrupt a user who has already navigated.
       if (
         target &&
@@ -50,7 +60,16 @@ export function MaxIntegration({ children }: { children: ReactNode }) {
       )
         navigate(target, { replace: true });
     }
-  }, [bridge, location.pathname, location.key, navigate]);
+  }, [bridge, location.pathname, location.key, navigate, organizationUser]);
+  useEffect(() => {
+    if (bridge.platform !== "max") return;
+    const initData = bridge.launchData().raw;
+    if (!initData || linkedInitData.current === initData) return;
+    linkedInitData.current = initData;
+    void authApi.linkMAX(initData).catch(() => {
+      linkedInitData.current = "";
+    });
+  }, [bridge, user.id]);
   useEffect(
     () =>
       bridge.backButton(

@@ -5,9 +5,23 @@ window.WebApp={initData:'start_param=house&hash=test',initDataUnsafe:{start_para
 ready(){window.bridgeCalls.ready++;window.bridgeCalls.rendered=!!document.querySelector('main')},
 BackButton:{show(){window.bridgeCalls.visible=true},hide(){window.bridgeCalls.visible=false},onClick(fn){window.bridgeCalls.handlers.push(fn)},offClick(fn){window.bridgeCalls.handlers=window.bridgeCalls.handlers.filter(x=>x!==fn)}},
 enableClosingConfirmation(){window.bridgeCalls.closing=true},disableClosingConfirmation(){window.bridgeCalls.closing=false}};`;
+test.beforeEach(async ({ page }) => {
+  await page.route("**/max/api/me", (route) =>
+    route.fulfill({
+      contentType: "application/json",
+      body: JSON.stringify({ id: "1", email: "resident@example.test", name: "Житель", roles: ["resident"] }),
+    }),
+  );
+});
 test("MAX SDK loads, ready runs after render and native back works for launch route", async ({
   page,
 }) => {
+  let linked = 0;
+  await page.route("**/max/api/me/max-account", async (route) => {
+    linked++;
+    expect((await route.request().postDataJSON()).initData).toBe("start_param=house&hash=test");
+    await route.fulfill({ contentType: "application/json", body: '{"ok":true}' });
+  });
   await page.route(sdk, (route) =>
     route.fulfill({ contentType: "application/javascript", body: stub }),
   );
@@ -16,6 +30,7 @@ test("MAX SDK loads, ready runs after render and native back works for launch ro
   await expect
     .poll(() => page.evaluate(() => (window as any).bridgeCalls?.ready))
     .toBe(1);
+  await expect.poll(() => linked).toBe(1);
   expect(await page.evaluate(() => (window as any).bridgeCalls.rendered)).toBe(
     true,
   );
@@ -52,6 +67,11 @@ test("MAX SDK loads, ready runs after render and native back works for launch ro
   ).toBe(0);
 });
 test("website works if SDK is unavailable", async ({ page }) => {
+  let linked = 0;
+  await page.route("**/max/api/me/max-account", (route) => {
+    linked++;
+    return route.fulfill({ contentType: "application/json", body: '{"ok":true}' });
+  });
   await page.route(sdk, (route) => route.abort());
   await page.goto("/max/");
   await page
@@ -61,6 +81,7 @@ test("website works if SDK is unavailable", async ({ page }) => {
   await expect(
     page.getByRole("heading", { name: "Новая заявка" }),
   ).toBeVisible();
+  expect(linked).toBe(0);
 });
 test("late SDK is used and unknown launch parameter cannot navigate externally", async ({
   page,

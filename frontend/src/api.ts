@@ -65,6 +65,12 @@ export const authApi = {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ email, code }),
     }),
+  linkMAX: (initData: string) =>
+    call<{ ok: boolean }>("/me/max-account", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ initData }),
+    }),
   logout: () => call<{ ok: boolean }>("/auth/logout", { method: "POST" }),
 };
 export const apartmentApi = {

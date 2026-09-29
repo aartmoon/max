@@ -32,14 +32,15 @@ func (n NotificationService) Notify(ctx context.Context, r domain.Request) {
 }
 
 type RequestService struct {
-	Repo          RequestRepository
-	Addresses     AddressProvider
-	Houses        HouseRepository
-	Classifier    Classifier
-	Routing       RouteResolver
-	Notifications NotificationService
-	Mailer        Mailer
-	Housing       integration.HousingSystemGateway
+	Repo             RequestRepository
+	Addresses        AddressProvider
+	Houses           HouseRepository
+	Classifier       Classifier
+	Routing          RouteResolver
+	Notifications    NotificationService
+	MAXNotifications MAXNotificationService
+	Mailer           Mailer
+	Housing          integration.HousingSystemGateway
 }
 type CreateInput struct {
 	Description       string `json:"description"`
@@ -157,6 +158,8 @@ func (s RequestService) Create(ctx context.Context, in CreateInput) (domain.Requ
 	})
 	if err == nil {
 		s.Notifications.Notify(ctx, r)
+		s.MAXNotifications.NotifyOwner(ctx, r, MAXEvent{Kind: MAXEventCreated})
+		s.MAXNotifications.NotifyManagers(ctx, r, MAXEvent{Kind: MAXEventCreated, Text: "Новая заявка"})
 		s.NotifyManagers(ctx, r)
 	}
 	return r, err
@@ -215,6 +218,7 @@ func (s RequestService) Next(ctx context.Context, id string, reject bool) (domai
 		}
 	}
 	s.Notifications.Notify(ctx, r)
+	s.MAXNotifications.NotifyOwner(ctx, r, MAXEvent{Kind: MAXEventStatus})
 	s.NotifyRequestOwnerStatusChanged(ctx, r, "")
 	return r, nil
 }

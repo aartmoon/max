@@ -93,11 +93,11 @@ function RequireOrganizationRole({ children }: { children: React.ReactNode }) {
 ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode>
     <BrowserRouter basename={appBasename}>
-      <MaxIntegration>
-        <AuthProvider>
+      <AuthProvider>
+        <MaxIntegration>
           <App />
-        </AuthProvider>
-      </MaxIntegration>
+        </MaxIntegration>
+      </AuthProvider>
     </BrowserRouter>
   </React.StrictMode>,
 );

@@ -14,6 +14,13 @@ func (h Handler) workflowRoutes(mux *http.ServeMux) {
 			return
 		}
 		item, err := (service.WorkflowService{Repo: h.Repo, Access: service.AccessService{Repo: h.Repo}}).UpdateAssignment(r.Context(), r.PathValue("id"), in)
+		if err == nil {
+			text := item.AssignedUserName
+			if text == "" {
+				text = item.ExecutorContact
+			}
+			h.Service.MAXNotifications.NotifyOwner(r.Context(), item, service.MAXEvent{Kind: service.MAXEventAssignment, Text: text})
+		}
 		respond(w, item, err)
 	})))
 	mux.HandleFunc("POST /api/requests/{id}/resolution", h.withID(h.requireUser(func(w http.ResponseWriter, r *http.Request, user domain.User) {
@@ -25,6 +32,7 @@ func (h Handler) workflowRoutes(mux *http.ServeMux) {
 		item, err := (service.WorkflowService{Repo: h.Repo, Access: service.AccessService{Repo: h.Repo}}).DecideResolution(r.Context(), r.PathValue("id"), in)
 		if err == nil {
 			h.Service.Notifications.Notify(r.Context(), item)
+			h.Service.MAXNotifications.NotifyManagers(r.Context(), item, service.MAXEvent{Kind: service.MAXEventStatus})
 			h.Service.NotifyManagers(r.Context(), item)
 		}
 		respond(w, item, err)
@@ -40,6 +48,10 @@ func (h Handler) workflowRoutes(mux *http.ServeMux) {
 			return
 		}
 		item, err := (service.WorkflowService{Repo: h.Repo, Access: service.AccessService{Repo: h.Repo}}).RouteManually(r.Context(), r.PathValue("id"), in.PrimaryOrganizationID, in.ContractorOrganizationID, in.Reason)
+		if err == nil {
+			h.Service.MAXNotifications.NotifyOwner(r.Context(), item, service.MAXEvent{Kind: service.MAXEventRouting, Text: item.PrimaryOrganization})
+			h.Service.MAXNotifications.NotifyManagers(r.Context(), item, service.MAXEvent{Kind: service.MAXEventCreated, Text: "Вам назначена заявка"})
+		}
 		respond(w, item, err)
 	})))
 }

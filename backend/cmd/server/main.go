@@ -44,13 +44,8 @@ func main() {
 		os.Exit(1)
 	}
 	mailer := mailerFromConfig(c)
-	authSvc := service.AuthService{Repo: repo, Mailer: mailer, BootstrapAdmins: bootstrapAdmins(c.AdminBootstrapEmails)}
-	svc := service.RequestService{Repo: repo, Addresses: repo, Houses: repo, Classifier: service.RuleClassifier{}, Routing: service.RoutingService{Repo: repo}, Notifications: service.NotificationService{Client: integration.MockMaxClient{}}, Mailer: mailer, Housing: integration.MockHousingSystemGateway{}}
-	registry := gishousing.NewClient(c.GISHousingBaseURL, c.GISHousingTimeout, &http.Client{})
-	houseSvc := service.HouseService{Repo: repo, Addresses: repo, Profiles: repo, Registry: registry, ProfileTTL: c.GISHouseCacheTTL}
-	server := &http.Server{Addr: ":" + c.Port, Handler: (controller.Handler{Service: svc, Auth: authSvc, Houses: houseSvc, Addresses: repo, Repo: repo, MockStatusEnabled: c.MockStatusEnabled}).Routes(), ReadHeaderTimeout: 5 * time.Second, ReadTimeout: 20 * time.Second, WriteTimeout: 30 * time.Second, IdleTimeout: 60 * time.Second}
-	stop, done := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
-	defer done()
+	var maxAPI service.MAXMessageAPI
+	var bot *maxbot.Bot
 	if c.MaxBotToken != "" {
 		if err := maxbot.ValidateSettings(c.MaxAppURL, c.MaxBotUsername); err != nil {
 			slog.Error("MAX bot configuration", "error", err)
@@ -61,7 +56,19 @@ func main() {
 			slog.Error("MAX bot TLS configuration", "error", err)
 			os.Exit(1)
 		}
-		bot := maxbot.Bot{API: client, AppURL: c.MaxAppURL, Username: c.MaxBotUsername}
+		maxAPI = client
+		configuredBot := maxbot.Bot{API: client, AppURL: c.MaxAppURL, Username: c.MaxBotUsername}
+		bot = &configuredBot
+	}
+	authSvc := service.AuthService{Repo: repo, Mailer: mailer, BootstrapAdmins: bootstrapAdmins(c.AdminBootstrapEmails)}
+	maxAccountSvc := service.MAXAccountService{Repo: repo, Token: c.MaxBotToken}
+	svc := service.RequestService{Repo: repo, Addresses: repo, Houses: repo, Classifier: service.RuleClassifier{}, Routing: service.RoutingService{Repo: repo}, Notifications: service.NotificationService{Client: integration.MockMaxClient{}}, MAXNotifications: service.MAXNotificationService{Repo: repo, API: maxAPI, Username: c.MaxBotUsername, AppURL: c.MaxAppURL}, Mailer: mailer, Housing: integration.MockHousingSystemGateway{}}
+	registry := gishousing.NewClient(c.GISHousingBaseURL, c.GISHousingTimeout, &http.Client{})
+	houseSvc := service.HouseService{Repo: repo, Addresses: repo, Profiles: repo, Registry: registry, ProfileTTL: c.GISHouseCacheTTL}
+	server := &http.Server{Addr: ":" + c.Port, Handler: (controller.Handler{Service: svc, Auth: authSvc, MAXAccounts: maxAccountSvc, Houses: houseSvc, Addresses: repo, Repo: repo, MockStatusEnabled: c.MockStatusEnabled}).Routes(), ReadHeaderTimeout: 5 * time.Second, ReadTimeout: 20 * time.Second, WriteTimeout: 30 * time.Second, IdleTimeout: 60 * time.Second}
+	stop, done := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
+	defer done()
+	if bot != nil {
 		go func() {
 			slog.Info("MAX bot polling started")
 			if err := bot.Run(stop); err != nil {
