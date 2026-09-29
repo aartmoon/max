@@ -8,7 +8,6 @@ import {
   type ReactNode,
 } from "react";
 import { authApi } from "./api";
-import { loadMaxBridge } from "./integration/max";
 import type { CurrentUser } from "./types";
 import { ErrorMessage, Loading } from "./components/UI";
 
@@ -19,23 +18,6 @@ interface AuthState {
 }
 
 const AuthContext = createContext<AuthState | null>(null);
-let initialAuth: Promise<CurrentUser | null> | undefined;
-
-async function resolveInitialUser(): Promise<CurrentUser | null> {
-  try {
-    return await authApi.me();
-  } catch {
-    // No cookie: a signed MAX launch may authenticate a resident.
-  }
-  try {
-    const bridge = await loadMaxBridge();
-    const initData = bridge.platform === "max" ? bridge.launchData().raw : "";
-    return initData ? await authApi.loginMAX(initData) : null;
-  } catch {
-    // Privileged MAX accounts and normal browsers continue to email login.
-    return null;
-  }
-}
 
 export function useAuth() {
   const value = useContext(AuthContext);
@@ -58,16 +40,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   useEffect(() => {
-    let active = true;
-    initialAuth ??= resolveInitialUser();
-    void initialAuth.then((current) => {
-      if (active) setUser(current);
-    }).finally(() => {
-      if (active) setLoading(false);
-    });
-    return () => {
-      active = false;
-    };
+    authApi
+      .me()
+      .then(setUser)
+      .catch(() => setUser(null))
+      .finally(() => setLoading(false));
   }, []);
 
   const value = useMemo(

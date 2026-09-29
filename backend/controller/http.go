@@ -18,13 +18,11 @@ import (
 type Handler struct {
 	Service           service.RequestService
 	Auth              service.AuthService
-	MAXAuth           service.MAXAuthService
 	MAXAccounts       service.MAXAccountService
 	Houses            service.HouseService
 	Addresses         service.AddressProvider
 	Repo              repository.Postgres
 	MockStatusEnabled bool
-	SecureCookies     bool
 }
 
 func (h Handler) Routes() http.Handler {
@@ -42,7 +40,6 @@ func (h Handler) Routes() http.Handler {
 	})
 	mux.HandleFunc("POST /api/auth/request-code", h.requestAuthCode)
 	mux.HandleFunc("POST /api/auth/verify-code", h.verifyAuthCode)
-	mux.HandleFunc("POST /api/auth/max", h.maxAuth)
 	mux.HandleFunc("POST /api/auth/logout", h.logout)
 	mux.HandleFunc("GET /api/me", h.requireUser(func(w http.ResponseWriter, r *http.Request, user domain.User) {
 		writeJSON(w, 200, user)
@@ -157,25 +154,7 @@ func (h Handler) verifyAuthCode(w http.ResponseWriter, r *http.Request) {
 		respond(w, nil, err)
 		return
 	}
-	h.setSessionCookie(w, r, session.Token, 30*24*60*60)
-	writeJSON(w, 200, session.User)
-}
-
-func (h Handler) maxAuth(w http.ResponseWriter, r *http.Request) {
-	r.Body = http.MaxBytesReader(w, r.Body, 16384)
-	var in struct {
-		InitData string `json:"initData"`
-	}
-	if err := decodeJSON(r, &in); err != nil {
-		badBody(w, err)
-		return
-	}
-	session, err := h.MAXAuth.Login(r.Context(), in.InitData)
-	if err != nil {
-		respond(w, nil, err)
-		return
-	}
-	h.setSessionCookie(w, r, session.Token, 30*24*60*60)
+	http.SetCookie(w, &http.Cookie{Name: service.SessionCookieName, Value: session.Token, Path: "/", HttpOnly: true, SameSite: http.SameSiteLaxMode, MaxAge: 30 * 24 * 60 * 60})
 	writeJSON(w, 200, session.User)
 }
 
@@ -184,20 +163,8 @@ func (h Handler) logout(w http.ResponseWriter, r *http.Request) {
 	if err == nil {
 		_ = h.Auth.Logout(r.Context(), cookie.Value)
 	}
-	h.setSessionCookie(w, r, "", -1)
+	http.SetCookie(w, &http.Cookie{Name: service.SessionCookieName, Value: "", Path: "/", HttpOnly: true, SameSite: http.SameSiteLaxMode, MaxAge: -1})
 	writeJSON(w, 200, map[string]bool{"ok": true})
-}
-
-func (h Handler) setSessionCookie(w http.ResponseWriter, r *http.Request, value string, maxAge int) {
-	secure := h.SecureCookies || r.TLS != nil
-	sameSite := http.SameSiteLaxMode
-	if secure {
-		sameSite = http.SameSiteNoneMode
-	}
-	http.SetCookie(w, &http.Cookie{
-		Name: service.SessionCookieName, Value: value, Path: "/", HttpOnly: true,
-		Secure: secure, SameSite: sameSite, MaxAge: maxAge,
-	})
 }
 
 func decodeJSON(r *http.Request, v any) error {

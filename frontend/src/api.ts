@@ -65,12 +65,6 @@ export const authApi = {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ email, code }),
     }),
-  loginMAX: (initData: string) =>
-    call<CurrentUser>("/auth/max", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ initData }),
-    }),
   linkMAX: (initData: string) =>
     call<{ ok: boolean }>("/me/max-account", {
       method: "POST",

@@ -4,14 +4,13 @@ import (
 	"fmt"
 	"net/url"
 	"os"
-	"strconv"
 	"strings"
 	"time"
 )
 
 type Config struct {
 	DatabaseURL, Port                                     string
-	MockStatusEnabled, SecureCookies                      bool
+	MockStatusEnabled                                     bool
 	MaxBotToken, MaxAppURL, MaxBotUsername, MaxCACertFile string
 	GISHousingBaseURL                                     string
 	GISHousingTimeout, GISHouseCacheTTL                   time.Duration
@@ -42,13 +41,9 @@ func Load() (Config, error) {
 	if err != nil {
 		return Config{}, err
 	}
-	secureCookies, err := boolean("SESSION_COOKIE_SECURE", false)
-	if err != nil {
-		return Config{}, err
-	}
 	return Config{
 		MaxBotToken: os.Getenv("MAX_BOT_TOKEN"), MaxAppURL: os.Getenv("MAX_APP_URL"), MaxBotUsername: os.Getenv("MAX_BOT_USERNAME"), MaxCACertFile: os.Getenv("MAX_CA_CERT_FILE"),
-		DatabaseURL: cenv("DATABASE_URL"), Port: port, MockStatusEnabled: os.Getenv("MOCK_STATUS_ENABLED") != "false", SecureCookies: secureCookies,
+		DatabaseURL: cenv("DATABASE_URL"), Port: port, MockStatusEnabled: os.Getenv("MOCK_STATUS_ENABLED") != "false",
 		GISHousingBaseURL: baseURL, GISHousingTimeout: timeout, GISHouseCacheTTL: ttl,
 		SMTPHost: os.Getenv("SMTP_HOST"), SMTPPort: cenvDefault("SMTP_PORT", "587"), SMTPUsername: os.Getenv("SMTP_USERNAME"), SMTPPassword: os.Getenv("SMTP_PASSWORD"), SMTPFrom: os.Getenv("SMTP_FROM"), SMTPTLS: os.Getenv("SMTP_TLS") == "true",
 		AdminBootstrapEmails: splitCSV(os.Getenv("ADMIN_BOOTSTRAP_EMAILS")),
@@ -84,18 +79,6 @@ func duration(name string, fallback time.Duration) (time.Duration, error) {
 	value, err := time.ParseDuration(raw)
 	if err != nil || value <= 0 {
 		return 0, fmt.Errorf("%s must be a positive duration", name)
-	}
-	return value, nil
-}
-
-func boolean(name string, fallback bool) (bool, error) {
-	raw := os.Getenv(name)
-	if raw == "" {
-		return fallback, nil
-	}
-	value, err := strconv.ParseBool(raw)
-	if err != nil {
-		return false, fmt.Errorf("%s must be true or false", name)
 	}
 	return value, nil
 }

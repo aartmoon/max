@@ -28,21 +28,3 @@ func TestGISDurationsRejectInvalidValues(t *testing.T) {
 		})
 	}
 }
-
-func TestSecureCookiesRequireExplicitConfiguration(t *testing.T) {
-	t.Setenv("SESSION_COOKIE_SECURE", "true")
-	c, err := Load()
-	if err != nil {
-		t.Fatal(err)
-	}
-	if !c.SecureCookies {
-		t.Fatal("SecureCookies = false, want true")
-	}
-}
-
-func TestSecureCookiesRejectInvalidConfiguration(t *testing.T) {
-	t.Setenv("SESSION_COOKIE_SECURE", "tru")
-	if _, err := Load(); err == nil {
-		t.Fatal("expected invalid SESSION_COOKIE_SECURE error")
-	}
-}

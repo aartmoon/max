@@ -13,21 +13,28 @@ async function authenticatedResident(page: import("@playwright/test").Page) {
     }),
   );
 }
-test("MAX SDK loads, ready runs after render and native back works for launch route", async ({
-  page,
-}) => {
+test("MAX launch without an email session shows email login", async ({ page }) => {
   await page.route("**/max/api/me", (route) =>
     route.fulfill({ status: 401, contentType: "application/json", body: '{"error":"требуется вход"}' }),
   );
   let maxLogins = 0;
-  await page.route("**/max/api/auth/max", async (route) => {
+  await page.route("**/max/api/auth/max", (route) => {
     maxLogins++;
-    expect((await route.request().postDataJSON()).initData).toBe("start_param=house&hash=test");
-    await route.fulfill({
-      contentType: "application/json",
-      body: JSON.stringify({ id: "1", name: "Житель MAX", roles: ["resident"] }),
-    });
+    return route.fulfill({ status: 500, contentType: "application/json", body: '{}' });
   });
+  await page.route(sdk, (route) =>
+    route.fulfill({ contentType: "application/javascript", body: stub }),
+  );
+
+  await page.goto("/max/");
+
+  await expect(page.getByRole("heading", { name: "Войдите по почте" })).toBeVisible();
+  expect(maxLogins).toBe(0);
+});
+test("MAX SDK loads, ready runs after render and native back works for launch route", async ({
+  page,
+}) => {
+  await authenticatedResident(page);
   await page.route("**/max/api/me/max-account", (route) =>
     route.fulfill({ contentType: "application/json", body: '{"ok":true}' }),
   );
@@ -39,7 +46,6 @@ test("MAX SDK loads, ready runs after render and native back works for launch ro
   await expect
     .poll(() => page.evaluate(() => (window as any).bridgeCalls?.ready))
     .toBe(1);
-  await expect.poll(() => maxLogins).toBe(1);
   expect(await page.evaluate(() => (window as any).bridgeCalls.rendered)).toBe(
     true,
   );
