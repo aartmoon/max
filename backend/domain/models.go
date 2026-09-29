@@ -15,6 +15,7 @@ var ErrHouseProfileNotFound = errors.New("сведения о доме не на
 var ErrHouseProfileUnavailable = errors.New("ГИС ЖКХ временно недоступна")
 var ErrUnauthorized = errors.New("требуется вход")
 var ErrForbidden = errors.New("недостаточно прав")
+var ErrRateLimited = errors.New("слишком много попыток, попробуйте позже")
 
 type ValidationError struct{ Message string }
 

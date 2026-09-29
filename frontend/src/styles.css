@@ -42,7 +42,7 @@ button:focus-visible {
 header {
   max-width: 800px;
   margin: auto;
-  padding: 24px 28px;
+  padding: 20px 28px;
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -73,20 +73,29 @@ header {
   width: min(440px, 100%);
 }
 .brand {
-  font-size: 24px;
-  font-weight: 750;
-  letter-spacing: -1px;
+  font-size: 19px;
+  font-weight: 700;
+  letter-spacing: 0;
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 9px;
+  color: #28463c;
 }
 .brand > span:first-child {
-  font-size: 32px;
+  width: 34px;
+  height: 34px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: #eaf0e4;
+  color: #5d7f64;
+  font-size: 22px;
   font-weight: 400;
+  line-height: 1;
 }
 .brand-dot {
   color: #578269;
-  margin-left: -8px;
+  margin-left: -7px;
 }
 .demo-label {
   font-size: 10px;
@@ -437,6 +446,83 @@ textarea {
   display: inline-block;
   text-decoration: underline;
   text-underline-offset: 3px;
+}
+.apartment-list {
+  display: grid;
+  gap: 12px;
+  margin: 14px 0 24px;
+}
+.apartment-item {
+  display: grid;
+  gap: 10px;
+  padding: 14px;
+  border: 1px solid #e4eadf;
+  border-radius: 14px;
+  background: #fbfcf9;
+}
+.apartment-item.selected {
+  border-color: #aac1a9;
+  background: #f2f7ef;
+}
+.apartment-card {
+  width: 100%;
+  min-width: 0;
+  border: 0;
+  background: transparent;
+  color: #274238;
+  display: grid;
+  grid-template-columns: 38px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  padding: 0;
+  text-align: left;
+}
+.apartment-card-icon {
+  width: 38px;
+  height: 38px;
+  display: grid;
+  place-items: center;
+  border-radius: 12px;
+  background: #e7eee3;
+  color: #66835e;
+  font-size: 24px;
+  line-height: 1;
+}
+.apartment-card-copy {
+  min-width: 0;
+  display: grid;
+  gap: 3px;
+}
+.apartment-card-copy strong {
+  font-size: 15px;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+.apartment-card-copy small {
+  color: #7c8877;
+  font-size: 12px;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+.apartment-selected-mark {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: #274f40;
+  color: #fff;
+  font-size: 14px;
+}
+.apartment-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  padding-left: 50px;
+}
+.apartment-actions .text-button {
+  padding: 2px 0;
 }
 .upload {
   border: 1px dashed #cbd7c4;
@@ -802,16 +888,23 @@ select:focus {
 }
 .house-banner {
   display: flex;
-  gap: 20px;
+  gap: 16px;
   align-items: center;
   background: #eaf0e4;
-  padding: 26px;
+  padding: 22px;
   border-radius: 16px;
   margin: 26px 0 16px;
 }
 .house-symbol {
-  font-size: 68px;
-  color: #94ac89;
+  flex: 0 0 62px;
+  width: 62px;
+  aspect-ratio: 1 / 1;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: #f8faf5;
+  font-size: 36px;
+  color: #6f8c66;
   line-height: 1;
 }
 .house-banner small {
@@ -851,6 +944,79 @@ select:focus {
 }
 .house-main-facts dd {
   font-size: 20px;
+}
+.management-panel h2 {
+  max-width: 720px;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+.management-facts {
+  grid-template-columns: repeat(2, minmax(220px, 1fr));
+  gap: 18px 22px;
+}
+.management-facts > div {
+  min-width: 0;
+  padding: 14px;
+  border-radius: 12px;
+  background: #f7f9f4;
+}
+.management-facts dd {
+  font-size: 15px;
+  line-height: 1.45;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+.management-panel .button.full {
+  margin-top: 24px;
+}
+.data-sources-panel h2 {
+  margin-bottom: 16px;
+}
+.data-source-list {
+  list-style: none;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  padding: 0;
+  margin: 0;
+}
+.data-source-list li {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  max-width: 100%;
+  border: 1px solid #e0e7dc;
+  border-radius: 999px;
+  background: #f7faf4;
+  padding: 8px 12px;
+  color: #3f5c4f;
+  font-size: 13px;
+}
+.data-source-list li::before {
+  content: "";
+  width: 7px;
+  height: 7px;
+  flex: 0 0 auto;
+  border-radius: 50%;
+  background: #6f966b;
+}
+.data-source-list li.unavailable {
+  color: #765c19;
+  background: #fff7df;
+  border-color: #f0dfad;
+}
+.data-source-list li.unavailable::before {
+  background: #bd8f2a;
+}
+.data-source-list span {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.data-source-list small {
+  color: inherit;
+  opacity: 0.72;
+  white-space: nowrap;
 }
 .house-more summary {
   display: flex;
@@ -910,7 +1076,7 @@ select:focus {
     padding: 28px 40px;
   }
   .brand {
-    font-size: 26px;
+    font-size: 20px;
   }
   .demo-label {
     padding: 7px 11px;
@@ -1058,6 +1224,41 @@ select:focus {
   }
   .bottom-nav a.active {
     background: #edf2e9;
+  }
+}
+@media (max-width: 540px) {
+  .brand {
+    font-size: 17px;
+  }
+  .brand > span:first-child {
+    width: 30px;
+    height: 30px;
+    font-size: 19px;
+  }
+  .apartment-actions {
+    padding-left: 0;
+  }
+  .house-banner {
+    align-items: flex-start;
+    padding: 18px;
+  }
+  .house-symbol {
+    flex-basis: 48px;
+    width: 48px;
+    font-size: 28px;
+  }
+  .house-banner h2 {
+    font-size: 16px;
+  }
+  .house-facts,
+  .management-facts {
+    grid-template-columns: 1fr;
+  }
+  .data-source-list {
+    display: grid;
+  }
+  .data-source-list li {
+    border-radius: 12px;
   }
 }
 @media (max-width: 400px) {
@@ -1932,5 +2133,269 @@ main:has(.admin-detail-layout) {
     align-items: flex-start;
     flex-direction: column;
     gap: 3px;
+  }
+}
+
+/* MAX palette refresh */
+:root {
+  --max-dark: #0d001a;
+  --max-primary: #471aff;
+  --max-violet: #9500ff;
+  --max-blue: #00bfff;
+  --max-accent: #6e1aff;
+  --max-bg: #f7f5ff;
+  --max-bg-strong: #efeaff;
+  --max-surface: #ffffff;
+  --max-border: #ddd4ff;
+  --max-muted: #675f7a;
+  --max-soft: #f2edff;
+  --max-danger: #7a28ff;
+  color: var(--max-dark);
+  background: var(--max-bg);
+  --text: var(--max-dark);
+  --muted: var(--max-muted);
+  --surface: var(--max-surface);
+}
+body {
+  background:
+    radial-gradient(circle at 12% 0%, rgb(0 191 255 / 14%), transparent 28%),
+    radial-gradient(circle at 88% 12%, rgb(149 0 255 / 13%), transparent 28%),
+    var(--max-bg);
+  color: var(--max-dark);
+}
+header,
+.panel,
+.action-card,
+.request-card,
+.admin-request-card,
+.admin-stats button,
+.admin-management,
+.admin-controls,
+.admin-user-row,
+.apartment-item {
+  border-color: var(--max-border);
+  background: rgb(255 255 255 / 92%);
+}
+.brand-dot,
+.eyebrow,
+.text-button,
+.admin-open-request,
+.my-requests > span:last-child,
+a:hover {
+  color: var(--max-primary);
+}
+.button.primary,
+.admin-refresh,
+.status-submit {
+  border-color: var(--max-primary);
+  background: linear-gradient(135deg, var(--max-primary), var(--max-violet));
+  color: #fff;
+}
+.button.primary:hover,
+.admin-refresh:hover:not(:disabled),
+.status-submit:hover:not(:disabled) {
+  background: linear-gradient(135deg, var(--max-accent), var(--max-blue));
+}
+input,
+select,
+textarea,
+.admin-search input {
+  border-color: var(--max-border);
+  background: #fff;
+  color: var(--max-dark);
+}
+input:focus,
+select:focus,
+textarea:focus,
+.admin-search input:focus {
+  border-color: var(--max-primary);
+  box-shadow: 0 0 0 3px rgb(71 26 255 / 14%);
+}
+.hero .house-art,
+.house-symbol {
+  background: linear-gradient(135deg, var(--max-blue), var(--max-violet));
+  border-color: #fff;
+  color: #fff;
+}
+.hero p,
+.intro,
+.muted,
+.form-note,
+.demo-note,
+.admin-list-header span,
+.admin-list-header small,
+.admin-address,
+.admin-request-side small,
+.admin-management-header small,
+.status-hint,
+.comment-help,
+.admin-user-main small {
+  color: var(--max-muted);
+}
+.bottom-nav {
+  border-color: var(--max-border);
+  background: rgb(255 255 255 / 94%);
+}
+.bottom-nav a {
+  color: var(--max-muted);
+}
+.bottom-nav a.active {
+  color: var(--max-primary);
+  background: var(--max-soft);
+}
+.badge,
+.admin-request-tags span,
+.deadline-pill,
+.priority-label,
+.admin-role-list label {
+  background: var(--max-soft);
+  color: var(--max-primary);
+}
+.status-CREATED,
+.status-SENT,
+.status-ACCEPTED,
+.status-IN_PROGRESS,
+.status-RESOLVED,
+.status-REJECTED {
+  background: var(--max-soft);
+  color: var(--max-primary);
+}
+.address-options {
+  border-color: var(--max-border);
+  box-shadow: 0 18px 40px rgb(13 0 26 / 12%);
+}
+.address-options button:hover,
+.address-options button.active,
+.address-options button[aria-selected="true"],
+.admin-queue-tabs button.active,
+.admin-stats button.active {
+  background: var(--max-soft);
+  color: var(--max-primary);
+}
+.admin-hero {
+  background:
+    radial-gradient(circle at 82% 18%, rgb(0 191 255 / 24%), transparent 24%),
+    linear-gradient(135deg, var(--max-dark), var(--max-primary) 52%, var(--max-violet));
+}
+.admin-notice,
+.house-warning,
+.urgent-note,
+.type-hint,
+.error {
+  border-color: var(--max-border);
+  background: var(--max-soft);
+  color: var(--max-dark);
+}
+.admin-stat-icon.neutral,
+.admin-stat-icon.danger,
+.admin-stat-icon.urgent,
+.admin-stat-icon.success {
+  background: rgb(255 255 255 / 88%);
+  color: var(--max-primary);
+}
+.admin-request-card.urgent-card {
+  border-left-color: var(--max-violet);
+  background: linear-gradient(90deg, rgb(149 0 255 / 8%), #fff 22%);
+}
+.danger-button,
+.deadline-pill.overdue,
+.deadline-pill.soon,
+.deadline-pill.closed,
+.admin-deadline-banner.overdue,
+.admin-deadline-banner.soon,
+.admin-deadline-banner.closed,
+.admin-user-warning {
+  background: var(--max-soft);
+  color: var(--max-violet);
+}
+
+.site-header {
+  width: min(calc(100% - 32px), 1120px);
+  max-width: none;
+  margin: 16px auto 0;
+  padding: 12px 16px;
+  border: 1px solid rgb(221 212 255 / 78%);
+  border-radius: 22px;
+  background: rgb(255 255 255 / 82%);
+  box-shadow: 0 14px 34px rgb(13 0 26 / 8%);
+  backdrop-filter: blur(14px);
+}
+.site-header .brand {
+  font-size: 18px;
+  font-weight: 720;
+  color: var(--max-dark);
+}
+.site-header .brand > span:first-child {
+  width: 32px;
+  height: 32px;
+  border-radius: 12px;
+  background: linear-gradient(135deg, var(--max-primary), var(--max-violet));
+  color: #fff;
+  font-size: 19px;
+}
+.site-header .demo-label {
+  border-color: var(--max-border);
+  border-radius: 999px;
+  background: var(--max-soft);
+  color: var(--max-primary);
+}
+.site-header .logout-button {
+  border-radius: 999px;
+  padding: 8px 10px;
+}
+.site-header .logout-button:hover {
+  background: var(--max-soft);
+  color: var(--max-primary);
+}
+.apartment-actions {
+  gap: 8px;
+}
+.apartment-action {
+  min-height: 32px;
+  border: 1px solid var(--max-border);
+  border-radius: 999px;
+  background: #fff;
+  color: var(--max-primary);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 6px 12px;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1;
+  text-decoration: none;
+  white-space: nowrap;
+}
+.apartment-action.current {
+  background: var(--max-soft);
+}
+.apartment-action.danger {
+  color: var(--max-violet);
+}
+.apartment-action:hover:not(:disabled) {
+  border-color: var(--max-primary);
+  background: var(--max-soft);
+}
+@media (max-width: 540px) {
+  .site-header {
+    width: min(calc(100% - 20px), 1120px);
+    margin-top: 10px;
+    padding: 10px 12px;
+    border-radius: 18px;
+  }
+  .site-header .brand {
+    font-size: 16px;
+  }
+  .site-header .brand > span:first-child {
+    width: 30px;
+    height: 30px;
+    border-radius: 10px;
+    font-size: 18px;
+  }
+  .apartment-actions {
+    align-items: stretch;
+  }
+  .apartment-action {
+    flex: 1 1 auto;
   }
 }

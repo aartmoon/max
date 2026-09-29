@@ -143,6 +143,34 @@ test("partial profile remains usable when the square summary is unavailable", as
   await expect(page.getByRole("link", { name: /Создать заявку/ })).toBeVisible();
 });
 
+test("saved apartment cards and source list are presented without status noise", async ({ page }) => {
+  await page.route("**/max/api/me/apartments", (route) => route.fulfill({
+    contentType: "application/json",
+    body: JSON.stringify([{
+      id: "apt-1",
+      userId: "user-1",
+      houseObjectId: address.objectId,
+      houseObjectGuid: address.objectGuid,
+      apartmentObjectId: "apt-object-1",
+      apartmentObjectGuid: "apt-guid-1",
+      address: address.fullAddress,
+      label: "кв. 12",
+      isDefault: true,
+    }]),
+  }));
+
+  await page.goto("/max/house");
+
+  const savedApartment = page.getByRole("button", { name: /кв\. 12/ });
+  await expect(savedApartment).toBeVisible();
+  await expect(savedApartment).toHaveClass(/apartment-card/);
+  await expect(page.locator(".house-symbol")).toHaveCSS("aspect-ratio", "1 / 1");
+  await expect(page.locator(".management-panel")).toBeVisible();
+  await expect(page.getByText("данные получены")).toHaveCount(0);
+  await expect(page.getByText("ГИС ЖКХ · карточка дома")).toBeVisible();
+  await expect(page.getByText("ГИС ЖКХ · сводка помещений")).toBeVisible();
+});
+
 test("saved house is restored from the browser", async ({ page }) => {
   await page.addInitScript((objectId) => localStorage.setItem("tvoy-dom:selected-house-object-id", objectId), address.objectId);
   await page.goto("/max/house");

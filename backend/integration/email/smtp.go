@@ -4,7 +4,9 @@ import (
 	"context"
 	"crypto/tls"
 	"fmt"
+	"html"
 	"log/slog"
+	"mime"
 	"net"
 	"net/smtp"
 	"strings"
@@ -47,7 +49,7 @@ type SMTPSender struct {
 }
 
 func (s SMTPSender) SendLoginCode(ctx context.Context, email, code string) error {
-	return s.send(ctx, email, "Код входа в Твой дом", "Ваш код входа: "+code+"\n\nКод действует 10 минут.")
+	return s.sendMessage(ctx, email, buildLoginCodeMessage(s.from(), email, code))
 }
 
 func (s SMTPSender) SendNewRequest(ctx context.Context, email string, r domain.Request) error {
@@ -63,29 +65,29 @@ func (s SMTPSender) SendRequestStatusChanged(ctx context.Context, email string, 
 	return s.send(ctx, email, "Статус заявки №"+r.ID+": "+r.Status, body)
 }
 
-func (s SMTPSender) send(ctx context.Context, to, subject, body string) error {
-	cfg := s.Config
-	if cfg.From == "" {
-		cfg.From = cfg.Username
+func (s SMTPSender) from() string {
+	if s.Config.From != "" {
+		return s.Config.From
 	}
+	return s.Config.Username
+}
+
+func (s SMTPSender) send(ctx context.Context, to, subject, body string) error {
+	return s.sendMessage(ctx, to, buildTextMessage(s.from(), to, subject, body))
+}
+
+func (s SMTPSender) sendMessage(ctx context.Context, to string, message []byte) error {
+	cfg := s.Config
+	from := s.from()
 	addr := net.JoinHostPort(cfg.Host, cfg.Port)
-	message := strings.Join([]string{
-		"From: " + cfg.From,
-		"To: " + to,
-		"Subject: " + subject,
-		"MIME-Version: 1.0",
-		"Content-Type: text/plain; charset=utf-8",
-		"",
-		body,
-	}, "\r\n")
 	auth := smtp.PlainAuth("", cfg.Username, cfg.Password, cfg.Host)
 	errc := make(chan error, 1)
 	go func() {
 		if cfg.TLS {
-			errc <- sendTLS(addr, auth, cfg.From, []string{to}, []byte(message), cfg.Host)
+			errc <- sendTLS(addr, auth, from, []string{to}, message, cfg.Host)
 			return
 		}
-		errc <- smtp.SendMail(addr, auth, cfg.From, []string{to}, []byte(message))
+		errc <- smtp.SendMail(addr, auth, from, []string{to}, message)
 	}()
 	select {
 	case <-ctx.Done():
@@ -93,6 +95,64 @@ func (s SMTPSender) send(ctx context.Context, to, subject, body string) error {
 	case err := <-errc:
 		return err
 	}
+}
+
+func buildTextMessage(from, to, subject, body string) []byte {
+	return []byte(strings.Join([]string{
+		"From: " + from,
+		"To: " + to,
+		"Subject: " + encodeHeader(subject),
+		"MIME-Version: 1.0",
+		"Content-Type: text/plain; charset=utf-8",
+		"",
+		body,
+	}, "\r\n"))
+}
+
+func buildLoginCodeMessage(from, to, code string) []byte {
+	const boundary = "tvoy-dom-max-login"
+	text := "Ваш код входа: " + code + "\n\nКод действует 10 минут."
+	safeCode := html.EscapeString(code)
+	htmlBody := `<!doctype html>
+<html lang="ru">
+<body style="margin:0;padding:0;background:#f7f5ff;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;color:#0d001a;">
+  <div style="padding:28px 16px;">
+    <div style="max-width:480px;margin:0 auto;background:#ffffff;border:1px solid #ddd4ff;border-radius:22px;overflow:hidden;">
+      <div style="padding:22px 24px;background:linear-gradient(135deg,#471aff,#9500ff 62%,#00bfff);color:#ffffff;">
+        <div style="font-size:12px;font-weight:700;letter-spacing:1.4px;text-transform:uppercase;">MAX · Твой дом</div>
+        <h1 style="margin:12px 0 0;font-size:24px;line-height:1.25;font-weight:750;">Код для входа</h1>
+      </div>
+      <div style="padding:26px 24px 28px;">
+        <p style="margin:0 0 18px;font-size:15px;line-height:1.6;color:#675f7a;">Введите этот код в приложении, чтобы войти в кабинет жителя.</p>
+        <div style="font-size:34px;line-height:1;letter-spacing:8px;font-weight:800;color:#471aff;background:#f2edff;border-radius:16px;padding:18px 20px;text-align:center;">` + safeCode + `</div>
+        <p style="margin:18px 0 0;font-size:13px;line-height:1.6;color:#675f7a;">Код действует 10 минут. Если вы не запрашивали вход, просто удалите это письмо.</p>
+      </div>
+    </div>
+  </div>
+</body>
+</html>`
+	return []byte(strings.Join([]string{
+		"From: " + from,
+		"To: " + to,
+		"Subject: " + encodeHeader("Код для входа"),
+		"MIME-Version: 1.0",
+		"Content-Type: multipart/alternative; boundary=" + boundary,
+		"",
+		"--" + boundary,
+		"Content-Type: text/plain; charset=utf-8",
+		"",
+		text,
+		"--" + boundary,
+		"Content-Type: text/html; charset=utf-8",
+		"",
+		htmlBody,
+		"--" + boundary + "--",
+		"",
+	}, "\r\n"))
+}
+
+func encodeHeader(value string) string {
+	return mime.QEncoding.Encode("UTF-8", value)
 }
 
 func sendTLS(addr string, auth smtp.Auth, from string, to []string, msg []byte, serverName string) error {

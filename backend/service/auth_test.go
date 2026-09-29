@@ -134,3 +134,64 @@ func TestAuthVerifyCodeConsumesCodeAndCreatesSession(t *testing.T) {
 		t.Fatal("login code was not consumed")
 	}
 }
+
+func TestAuthRequestCodeIsRateLimitedPerEmail(t *testing.T) {
+	repo := newAuthRepo()
+	mailer := &captureMailer{}
+	now := time.Unix(1000, 0).UTC()
+	svc := AuthService{
+		Repo:           repo,
+		Mailer:         mailer,
+		Now:            func() time.Time { return now },
+		CodeGenerator:  func() (string, error) { return "123456", nil },
+		TokenGenerator: func() (string, error) { return "token", nil },
+		LoginLimiter:   NewLoginLimiter(),
+	}
+
+	if err := svc.RequestCode(context.Background(), "user@example.com"); err != nil {
+		t.Fatal(err)
+	}
+	if err := svc.RequestCode(context.Background(), "user@example.com"); err != domain.ErrRateLimited {
+		t.Fatalf("expected rate limit for immediate repeat, got %v", err)
+	}
+
+	now = now.Add(time.Minute)
+	if err := svc.RequestCode(context.Background(), "user@example.com"); err != nil {
+		t.Fatalf("expected request after cooldown to pass, got %v", err)
+	}
+}
+
+func TestAuthVerifyCodeLocksAfterRepeatedFailuresAndResetsAfterSuccess(t *testing.T) {
+	repo := newAuthRepo()
+	mailer := &captureMailer{}
+	now := time.Unix(2000, 0).UTC()
+	svc := AuthService{
+		Repo:           repo,
+		Mailer:         mailer,
+		Now:            func() time.Time { return now },
+		CodeGenerator:  func() (string, error) { return "123456", nil },
+		TokenGenerator: func() (string, error) { return "session-token", nil },
+		LoginLimiter:   NewLoginLimiter(),
+	}
+	if err := svc.RequestCode(context.Background(), "user@example.com"); err != nil {
+		t.Fatal(err)
+	}
+
+	for i := 0; i < 5; i++ {
+		if _, err := svc.VerifyCode(context.Background(), "user@example.com", "000000"); err != domain.ErrUnauthorized {
+			t.Fatalf("attempt %d: expected unauthorized, got %v", i+1, err)
+		}
+	}
+	if _, err := svc.VerifyCode(context.Background(), "user@example.com", "123456"); err != domain.ErrRateLimited {
+		t.Fatalf("expected lockout after repeated failures, got %v", err)
+	}
+
+	now = now.Add(10*time.Minute + time.Second)
+	session, err := svc.VerifyCode(context.Background(), "user@example.com", "123456")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if session.Token != "session-token" {
+		t.Fatalf("unexpected session after lockout: %+v", session)
+	}
+}

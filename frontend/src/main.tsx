@@ -29,7 +29,7 @@ function App() {
   }, [location.pathname]);
   return (
     <>
-      <header>
+      <header className="site-header">
         <Link className="brand" to="/">
           <span>⌂</span> Твой дом<span className="brand-dot">.</span>
         </Link>

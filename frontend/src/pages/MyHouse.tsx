@@ -166,13 +166,18 @@ export default function MyHouse() {
         <div className="apartment-list">
           {apartments.map((item) => (
             <div className={`apartment-item ${current?.id === item.id ? "selected" : ""}`} key={item.id}>
-              <button className="text-button apartment-title" type="button" onClick={() => setCurrent(item)}>
-                {item.label || item.address}
+              <button className="apartment-card" type="button" onClick={() => setCurrent(item)}>
+                <span className="apartment-card-icon" aria-hidden="true">⌂</span>
+                <span className="apartment-card-copy">
+                  <strong>{item.label || item.address}</strong>
+                  {item.label && item.address && item.label !== item.address && <small>{item.address}</small>}
+                </span>
+                {current?.id === item.id && <span className="apartment-selected-mark" aria-hidden="true">✓</span>}
               </button>
-              {item.isDefault && <span className="badge">Основная</span>}
               <div className="apartment-actions">
-                {!item.isDefault && <button className="text-button" disabled={saving} type="button" onClick={() => makeDefault(item)}>Сделать основной</button>}
-                <button className="text-button" disabled={saving} type="button" onClick={() => removeApartment(item)}>Удалить</button>
+                {item.isDefault && <span className="apartment-action current">Основная</span>}
+                {!item.isDefault && <button className="apartment-action" disabled={saving} type="button" onClick={() => makeDefault(item)}>Сделать основной</button>}
+                <button className="apartment-action danger" disabled={saving} type="button" onClick={() => removeApartment(item)}>Удалить</button>
               </div>
             </div>
           ))}
@@ -200,9 +205,7 @@ export default function MyHouse() {
       {house.stale && <p className="house-warning">ГИС ЖКХ сейчас недоступна — данные могут быть устаревшими.</p>}
       <section className="house-banner"><span className="house-symbol" aria-hidden="true">⌂</span><div><small>{formatValue(current?.label || current?.address)}</small><h2>{formatValue(house.address)}</h2></div></section>
       <section className="panel"><h2>Паспорт дома</h2><dl className="house-facts house-main-facts">
-        <div><dt>Кадастровый номер</dt><dd>{formatValue(house.cadastralNumber)}</dd></div>
         <div><dt>Тип дома</dt><dd>{formatValue(characteristics?.houseType)}</dd></div>
-        <div><dt>Состояние</dt><dd>{formatValue(characteristics?.condition)}</dd></div>
         <div><dt>Год постройки</dt><dd>{formatValue(characteristics ? characteristics.yearBuilt : house.yearBuilt)}</dd></div>
         <div><dt>Общая площадь</dt><dd>{area(characteristics?.totalArea ?? house.totalArea)}</dd></div>
         <div><dt>Жилая площадь</dt><dd>{area(characteristics?.livingArea ?? house.livingArea)}</dd></div>
@@ -210,27 +213,24 @@ export default function MyHouse() {
         <div><dt>Этажей</dt><dd>{formatValue(characteristics?.floors ?? house.floors)}</dd></div>
         <div><dt>Подъездов</dt><dd>{formatValue(characteristics?.entrances ?? house.entrances)}</dd></div>
         <div><dt>Материал стен</dt><dd>{formatValue(characteristics?.wallMaterial)}</dd></div>
-        <div><dt>Физический износ</dt><dd>{percent(characteristics?.deteriorationPercent)}</dd></div>
+        <div><dt>Класс энергоэффективности</dt><dd>{formatValue(characteristics?.energyEfficiency)}</dd></div>
       </dl></section>
-      <details className="panel house-more"><summary>Все характеристики</summary><dl className="house-facts house-more-facts">
-        <div><dt>Статус</dt><dd>{formatValue(characteristics?.status)}</dd></div>
+      <details className="panel house-more"><summary>Дополнительные сведения</summary><dl className="house-facts house-more-facts">
+        <div><dt>Кадастровый номер</dt><dd>{formatValue(house.cadastralNumber)}</dd></div>
+        <div><dt>Состояние</dt><dd>{formatValue(characteristics?.condition)}</dd></div>
         <div><dt>Стадия жизненного цикла</dt><dd>{formatValue(characteristics?.lifecycleStage)}</dd></div>
         <div><dt>Серия / проект</dt><dd>{formatValue(characteristics?.projectSeries)}</dd></div>
         <div><dt>Год ввода в эксплуатацию</dt><dd>{formatValue(characteristics?.operationYear)}</dd></div>
         <div><dt>Год реконструкции</dt><dd>{formatValue(characteristics?.reconstructionYear)}</dd></div>
         <div><dt>Площадь жилых помещений</dt><dd>{area(characteristics?.residentialPremisesArea)}</dd></div>
-        <div><dt>Жилых помещений, связанных с ЕГРН</dt><dd>{formatValue(characteristics?.residentialPremisesWithRealty)}</dd></div>
-        <div><dt>Площадь жилых помещений, связанных с ЕГРН</dt><dd>{area(characteristics?.residentialPremisesWithRealtyArea)}</dd></div>
         <div><dt>Нежилая площадь</dt><dd>{area(characteristics?.nonResidentialArea)}</dd></div>
         <div><dt>Нежилых помещений</dt><dd>{formatValue(characteristics?.nonResidentialPremises)}</dd></div>
         <div><dt>Площадь нежилых помещений</dt><dd>{area(characteristics?.nonResidentialPremisesArea)}</dd></div>
-        <div><dt>Нежилых помещений без общего имущества</dt><dd>{formatValue(characteristics?.nonResidentialPremisesNotCommon)}</dd></div>
-        <div><dt>Их площадь</dt><dd>{area(characteristics?.nonResidentialPremisesNotCommonArea)}</dd></div>
         <div><dt>Собственников / долей</dt><dd>{formatValue(characteristics?.ownersOrShares)}</dd></div>
+        <div><dt>Физический износ</dt><dd>{percent(characteristics?.deteriorationPercent)}</dd></div>
         <div><dt>Дата оценки износа</dt><dd>{formatDate(characteristics?.deteriorationDate)}</dd></div>
-        <div><dt>Класс энергоэффективности</dt><dd>{formatValue(characteristics?.energyEfficiency)}</dd></div>
       </dl></details>
-      <section className="panel"><div className="eyebrow">КТО УПРАВЛЯЕТ ДОМОМ</div><h2>{formatValue(management?.shortName ?? management?.fullName ?? house.organization)}</h2><dl className="house-facts">
+      <section className="panel management-panel"><div className="eyebrow">КТО УПРАВЛЯЕТ ДОМОМ</div><h2>{formatValue(management?.shortName ?? management?.fullName ?? house.organization)}</h2><dl className="house-facts management-facts">
         <div><dt>Способ управления</dt><dd>{formatValue(management?.method)}</dd></div>
         <div><dt>Полное название</dt><dd>{formatValue(management?.fullName)}</dd></div>
         <div><dt>Адрес организации</dt><dd>{formatValue(management?.address)}</dd></div>
@@ -239,15 +239,12 @@ export default function MyHouse() {
         <div><dt>Сайт</dt><dd>{safeWebsite ? <a href={safeWebsite} target="_blank" rel="noreferrer">{websiteLabel}</a> : formatValue(websiteLabel)}</dd></div>
         <div><dt>ИНН</dt><dd>{formatValue(management?.inn)}</dd></div>
         <div><dt>ОГРН</dt><dd>{formatValue(management?.ogrn)}</dd></div>
-        <div><dt>Тип организации</dt><dd>{formatValue(management?.organizationType)}</dd></div>
         <div><dt>Начало управления</dt><dd>{formatDate(management?.contractStart)}</dd></div>
         <div><dt>Окончание управления</dt><dd>{formatDate(management?.contractEnd)}</dd></div>
-        <div><dt>GUID организации</dt><dd>{formatValue(management?.organizationGuid)}</dd></div>
-        <div><dt>GUID в реестре</dt><dd>{formatValue(management?.registryOrganizationGuid)}</dd></div>
       </dl><Link className="button primary full" to="/requests/new">Создать заявку <span>→</span></Link></section>
-      <section className="panel"><h2>Источники данных</h2><dl className="house-facts">
-        {sources.map((source) => <div key={source.name}><dt>{formatValue(source.name)}</dt><dd>{source.available ? "данные получены" : "недоступен при обновлении"}</dd></div>)}
-      </dl></section>
+      <section className="panel data-sources-panel"><h2>Источники данных</h2><ul className="data-source-list">
+        {sources.map((source) => <li className={!source.available ? "unavailable" : ""} key={source.name}><span>{formatValue(source.name)}</span>{!source.available && <small>недоступен при обновлении</small>}</li>)}
+      </ul></section>
       <p className="demo-note">Обновлено: {formatDateTime(house.dataUpdatedAt)}.</p>
     </> : null}
   </>;

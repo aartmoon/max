@@ -438,6 +438,9 @@ func respond(w http.ResponseWriter, v any, err error) {
 	case errors.Is(err, domain.ErrForbidden):
 		code = 403
 		message = err.Error()
+	case errors.Is(err, domain.ErrRateLimited):
+		code = 429
+		message = err.Error()
 	case errors.Is(err, domain.ErrInvalidAddressID):
 		code = 400
 		message = err.Error()

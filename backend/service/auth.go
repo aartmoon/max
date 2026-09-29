@@ -9,6 +9,7 @@ import (
 	"math/big"
 	"net/mail"
 	"strings"
+	"sync"
 	"time"
 	"tvoydom/domain"
 )
@@ -50,11 +51,36 @@ type AuthService struct {
 	TokenGenerator  func() (string, error)
 	CodeTTL         time.Duration
 	SessionTTL      time.Duration
+	LoginLimiter    *LoginLimiter
+}
+
+var defaultLoginLimiter = NewLoginLimiter()
+
+type LoginLimiter struct {
+	mu       sync.Mutex
+	requests map[string][]time.Time
+	failures map[string]loginFailure
+}
+
+type loginFailure struct {
+	Attempts    int
+	LockedUntil time.Time
+}
+
+func NewLoginLimiter() *LoginLimiter {
+	return &LoginLimiter{
+		requests: map[string][]time.Time{},
+		failures: map[string]loginFailure{},
+	}
 }
 
 func (s AuthService) RequestCode(ctx context.Context, rawEmail string) error {
 	email, err := normalizeEmail(rawEmail)
 	if err != nil {
+		return err
+	}
+	now := s.now()
+	if err := s.limiter().allowCodeRequest(email, now); err != nil {
 		return err
 	}
 	roles := []string{"resident"}
@@ -80,13 +106,23 @@ func (s AuthService) VerifyCode(ctx context.Context, rawEmail, rawCode string) (
 		return domain.AuthSession{}, err
 	}
 	code := strings.TrimSpace(rawCode)
+	if err := s.limiter().allowCodeVerification(email, s.now()); err != nil {
+		return domain.AuthSession{}, err
+	}
 	if len(code) != 6 {
+		s.limiter().recordCodeFailure(email, s.now())
 		return domain.AuthSession{}, domain.ErrUnauthorized
 	}
 	user, err := s.Repo.ConsumeLoginCode(ctx, email, hashSecret(email+":"+code), s.now())
 	if err != nil {
+		if err == domain.ErrUnauthorized {
+			if limitErr := s.limiter().recordCodeFailure(email, s.now()); limitErr != nil {
+				return domain.AuthSession{}, limitErr
+			}
+		}
 		return domain.AuthSession{}, err
 	}
+	s.limiter().resetCodeFailures(email)
 	token, err := s.token()
 	if err != nil {
 		return domain.AuthSession{}, err
@@ -131,6 +167,74 @@ func (s AuthService) sessionTTL() time.Duration {
 		return s.SessionTTL
 	}
 	return 30 * 24 * time.Hour
+}
+
+func (s AuthService) limiter() *LoginLimiter {
+	if s.LoginLimiter != nil {
+		return s.LoginLimiter
+	}
+	return defaultLoginLimiter
+}
+
+func (l *LoginLimiter) allowCodeRequest(email string, now time.Time) error {
+	const minInterval = time.Minute
+	const window = 15 * time.Minute
+	const maxRequests = 5
+
+	l.mu.Lock()
+	defer l.mu.Unlock()
+
+	cutoff := now.Add(-window)
+	recent := l.requests[email][:0]
+	for _, at := range l.requests[email] {
+		if at.After(cutoff) {
+			recent = append(recent, at)
+		}
+	}
+	if len(recent) > 0 && now.Sub(recent[len(recent)-1]) < minInterval {
+		l.requests[email] = recent
+		return domain.ErrRateLimited
+	}
+	if len(recent) >= maxRequests {
+		l.requests[email] = recent
+		return domain.ErrRateLimited
+	}
+	l.requests[email] = append(recent, now)
+	return nil
+}
+
+func (l *LoginLimiter) allowCodeVerification(email string, now time.Time) error {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	state := l.failures[email]
+	if state.LockedUntil.After(now) {
+		return domain.ErrRateLimited
+	}
+	return nil
+}
+
+func (l *LoginLimiter) recordCodeFailure(email string, now time.Time) error {
+	const maxFailures = 5
+	const lockout = 10 * time.Minute
+
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	state := l.failures[email]
+	if state.LockedUntil.After(now) {
+		return domain.ErrRateLimited
+	}
+	state.Attempts++
+	if state.Attempts >= maxFailures {
+		state.LockedUntil = now.Add(lockout)
+	}
+	l.failures[email] = state
+	return nil
+}
+
+func (l *LoginLimiter) resetCodeFailures(email string) {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	delete(l.failures, email)
 }
 
 func (s AuthService) code() (string, error) {
