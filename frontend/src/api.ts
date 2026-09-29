@@ -126,10 +126,16 @@ export const addressApi = {
   },
 };
 export const adminApi = {
-  list: (signal?: AbortSignal, queue = "ACTIVE") => {
-    const params = new URLSearchParams({ queue });
-    if (queue === "VISIT_TODAY") { const start = new Date(); start.setHours(0,0,0,0); const end = new Date(start); end.setDate(end.getDate()+1); params.set("visitStart",start.toISOString()); params.set("visitEnd",end.toISOString()); }
-    return call<RequestItem[]>(`/admin/requests?${params}`, { signal });
+  list: (filters: import("./admin").AdminFilters, signal?: AbortSignal) => {
+    const queueMap: Record<import("./admin").QueueFilter, string> = { active:"ACTIVE", new:"NEW", inWork:"IN_WORK", overdue:"OVERDUE", emergency:"EMERGENCY", done:"DONE", unassigned:"UNASSIGNED", mine:"MINE", visitToday:"VISIT_TODAY", all:"ALL" };
+    const sortMap: Record<import("./admin").AdminSort, string> = { priority:"PRIORITY", newest:"NEWEST", deadline:"DEADLINE" };
+    const params = new URLSearchParams({ queue: queueMap[filters.queue], sort: sortMap[filters.sort], page: String(filters.page), pageSize: String(filters.pageSize) });
+    if (filters.query) params.set("q", filters.query);
+    if (filters.organization) params.set("organization", filters.organization);
+    if (filters.kind) params.set("kind", filters.kind);
+    if (filters.status) params.set("status", filters.status);
+    if (filters.queue === "visitToday") { const start = new Date(); start.setHours(0,0,0,0); const end = new Date(start); end.setDate(end.getDate()+1); params.set("visitStart",start.toISOString()); params.set("visitEnd",end.toISOString()); }
+    return call<import("./types").AdminRequestPage>(`/admin/requests?${params}`, { signal });
   },
   organizations: (signal?: AbortSignal) =>
     call<Organization[]>("/organizations", { signal }),

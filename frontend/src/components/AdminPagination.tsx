@@ -1,0 +1,5 @@
+export default function AdminPagination({page,pageSize,total,onPage,onPageSize}:{page:number;pageSize:20|50|100;total:number;onPage:(page:number)=>void;onPageSize:(size:20|50|100)=>void}){
+  const pages=Math.max(1,Math.ceil(total/pageSize)), start=total?(page-1)*pageSize+1:0, end=Math.min(page*pageSize,total);
+  const numbers=Array.from({length:pages},(_,i)=>i+1).filter(n=>n===1||n===pages||Math.abs(n-page)<=1);
+  return <nav className="admin-pagination" aria-label="Страницы заявок"><span>Показано {start}–{end} из {total}</span><div><button type="button" disabled={page<=1} onClick={()=>onPage(page-1)}>Назад</button>{numbers.map(n=><button type="button" key={n} className={n===page?"active":""} aria-current={n===page?"page":undefined} onClick={()=>onPage(n)}>{n}</button>)}<button type="button" disabled={page>=pages} onClick={()=>onPage(page+1)}>Далее</button></div><label>На странице <select value={pageSize} onChange={e=>onPageSize(Number(e.target.value) as 20|50|100)}><option value="20">20</option><option value="50">50</option><option value="100">100</option></select></label></nav>
+}

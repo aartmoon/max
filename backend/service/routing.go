@@ -40,15 +40,22 @@ func (s RoutingService) Resolve(ctx context.Context, query RouteQuery) (RouteDec
 	best := map[string][]domain.ResponsibilityRule{}
 	scores := map[string]int{}
 	for _, rule := range rules {
-		if !rule.Active || rule.Category != query.Category || rule.ValidFrom.After(query.At) || (rule.ValidTo != nil && !rule.ValidTo.After(query.At)) {
+		if !rule.Active || rule.ValidFrom.After(query.At) || (rule.ValidTo != nil && !rule.ValidTo.After(query.At)) {
 			continue
 		}
 		score := 0
+		switch rule.Category {
+		case query.Category:
+			score = 4
+		case "*":
+		default:
+			continue
+		}
 		if rule.Place != "" {
 			if rule.Place != query.Place {
 				continue
 			}
-			score++
+			score += 2
 		}
 		if rule.Urgency != "" {
 			if rule.Urgency != query.Urgency {
@@ -73,7 +80,11 @@ func (s RoutingService) Resolve(ctx context.Context, query RouteQuery) (RouteDec
 	if len(best["ESCALATION"]) == 1 {
 		decision.Escalation = &best["ESCALATION"][0]
 	}
-	decision.Reason = fmt.Sprintf("Правило дома: категория «%s»", query.Category)
+	if decision.Primary.Category == "*" {
+		decision.Reason = fmt.Sprintf("Выбрано резервное правило дома: категория «%s»", query.Category)
+	} else {
+		decision.Reason = fmt.Sprintf("Правило дома: категория «%s»", query.Category)
+	}
 	if query.Place != "" {
 		decision.Reason += ", место «" + query.Place + "»"
 	}

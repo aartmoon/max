@@ -47,6 +47,9 @@ var arbatCapitalRepairMigration string
 //go:embed migrations/012_max_accounts.sql
 var maxAccountsMigration string
 
+//go:embed migrations/013_house_default_routes.sql
+var houseDefaultRoutesMigration string
+
 func (p Postgres) Migrate(ctx context.Context) error {
 	tx, err := p.Pool.Begin(ctx)
 	if err != nil {
@@ -187,6 +190,17 @@ func (p Postgres) Migrate(ctx context.Context) error {
 			return err
 		}
 		if _, err = tx.Exec(ctx, `INSERT INTO schema_migrations VALUES(12)`); err != nil {
+			return err
+		}
+	}
+	if err = tx.QueryRow(ctx, `SELECT EXISTS(SELECT 1 FROM schema_migrations WHERE version=13)`).Scan(&exists); err != nil {
+		return err
+	}
+	if !exists {
+		if _, err = tx.Exec(ctx, houseDefaultRoutesMigration); err != nil {
+			return err
+		}
+		if _, err = tx.Exec(ctx, `INSERT INTO schema_migrations VALUES(13)`); err != nil {
 			return err
 		}
 	}

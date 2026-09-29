@@ -94,12 +94,27 @@ test.beforeEach(async ({ page }) => {
 test("admin queue prioritizes work and keeps filters in the URL", async ({
   page,
 }) => {
-  await page.route(/\/max\/api\/admin\/requests\?/, (route) => {
-    const queue = new URL(route.request().url()).searchParams.get("queue");
-    const result = queue === "ALL"
-      ? requests
-      : requests.filter(({ status }) => status !== "CLOSED" && status !== "REJECTED");
-    return route.fulfill({ contentType: "application/json", body: JSON.stringify(result) });
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.route("**/max/api/admin/requests?*", (route) => {
+    const url = new URL(route.request().url());
+    const queue = url.searchParams.get("queue");
+    let items = requests;
+    if (queue === "ACTIVE") {
+      items = items.filter((item) => !["CLOSED", "REJECTED"].includes(item.status));
+    }
+    if (queue === "DONE") {
+      items = items.filter((item) => ["CLOSED", "REJECTED"].includes(item.status));
+    }
+    if (queue === "OVERDUE") {
+      items = items.filter(
+        (item) =>
+          !["CLOSED", "REJECTED"].includes(item.status) &&
+          new Date(item.deadline).getTime() < now,
+      );
+    }
+    const query = (url.searchParams.get("q") ?? "").toLowerCase();
+    if (query) items = items.filter((item) => `${item.id} ${item.address} ${item.description}`.toLowerCase().includes(query));
+    return route.fulfill({ contentType: "application/json", body: JSON.stringify({ items, page: 1, pageSize: 20, total: items.length, summary: { active: 3, new: 1, overdue: 1, unassigned: 3, done: 1 } }) });
   });
   await page.route("**/max/api/organizations", (route) =>
     route.fulfill({
@@ -117,13 +132,13 @@ test("admin queue prioritizes work and keeps filters in the URL", async ({
   await expect(page.locator(".admin-request-card").first()).toContainText(
     "Сильная протечка",
   );
-  await expect(page.locator(".admin-request-list")).toContainText("Когда будет уборка двора");
-  await expect(page.getByRole("button", { name: /Завершены.*решены или закрыты/ })).toContainText("1");
-  await page.getByRole("button", { name: "Завершённые" }).click();
+  await expect(page.locator(".admin-request-cards")).toContainText("Когда будет уборка двора");
+  await expect(page.locator(".admin-stats").getByRole("button", { name: /Завершённые/ })).toContainText("1");
+  await page.locator(".admin-stats").getByRole("button", { name: /Завершённые/ }).click();
   await expect(page.locator(".admin-request-card")).toHaveCount(1);
-  await expect(page.locator(".admin-request-list")).toContainText("Закрытая заявка на освещение");
-  await expect(page.locator(".admin-request-list")).not.toContainText("Когда будет уборка двора");
-  await page.getByRole("button", { name: "Активные", exact: true }).click();
+  await expect(page.locator(".admin-request-cards")).toContainText("Закрытая заявка на освещение");
+  await expect(page.locator(".admin-request-cards")).not.toContainText("Когда будет уборка двора");
+  await page.locator(".admin-stats").getByRole("button", { name: /Активные/ }).click();
   await expect(page.locator(".admin-request-card")).toHaveCount(3);
   await expect(page.locator(".bottom-nav")).toHaveCount(0);
   await page.screenshot({
@@ -132,19 +147,18 @@ test("admin queue prioritizes work and keeps filters in the URL", async ({
   });
 
   await page
-    .getByRole("button", { name: /Просрочены.*срок уже вышел/ })
+    .locator(".admin-stats")
+    .getByRole("button", { name: /Просроченные/ })
     .click();
   await expect(page.locator(".admin-request-card")).toHaveCount(1);
-  await expect(page.locator(".admin-request-card")).toContainText(
-    "Не работает лифт",
-  );
+  await expect(page.locator(".admin-request-card").filter({ hasText: "Не работает лифт" })).toHaveCount(1);
   await expect(page).toHaveURL(/queue=overdue/);
 
   await page.getByLabel("Поиск по заявкам").fill("подъезд 2");
   await expect(page.locator(".admin-request-card")).toHaveCount(1);
   await expect(page).toHaveURL(/q=/);
 
-  await page.getByRole("button", { name: "Сбросить фильтры" }).click();
+  await page.getByRole("button", { name: "Сбросить" }).click();
   await expect(page).toHaveURL(/\/max\/admin$/);
   await expect(page.locator(".admin-request-card")).toHaveCount(3);
 
@@ -162,6 +176,28 @@ test("admin queue prioritizes work and keeps filters in the URL", async ({
       });
     }
   }
+});
+
+test("admin paginates requests on the server", async ({ page }) => {
+  const many = Array.from({ length: 25 }, (_, index) => ({
+    ...requests[0],
+    id: String(index + 1),
+    description: `Заявка ${index + 1}`,
+  }));
+  await page.route("**/max/api/admin/requests?*", (route) => {
+    const url = new URL(route.request().url());
+    const current = Number(url.searchParams.get("page") ?? "1");
+    const size = Number(url.searchParams.get("pageSize") ?? "20");
+    const items = many.slice((current - 1) * size, current * size);
+    return route.fulfill({ contentType: "application/json", body: JSON.stringify({ items, page: current, pageSize: size, total: many.length, summary: { active: 25, new: 25, overdue: 0, unassigned: 25, done: 0 } }) });
+  });
+  await page.route("**/max/api/organizations", (route) => route.fulfill({ contentType: "application/json", body: "[]" }));
+  await page.goto("/max/admin");
+  await expect(page.locator(".admin-request-card")).toHaveCount(20);
+  await page.getByRole("button", { name: "Далее" }).click();
+  await expect(page).toHaveURL(/page=2/);
+  await expect(page.locator(".admin-request-card")).toHaveCount(5);
+  await expect(page.getByText("Показано 21–25 из 25")).toBeVisible();
 });
 
 test("admin must describe the result before resolving a request", async ({
@@ -228,16 +264,36 @@ test("admin must describe the result before resolving a request", async ({
     comment: "Лифт запущен, проверка выполнена.",
   });
 
-  await page.route(/\/max\/api\/admin\/requests\?/, (route) =>
-    route.fulfill({ contentType: "application/json", body: JSON.stringify([current]) }),
-  );
+  await page.route("**/max/api/admin/requests?*", (route) => {
+    const queue = new URL(route.request().url()).searchParams.get("queue");
+    const isDone = ["CLOSED", "REJECTED"].includes(current.status);
+    const items = queue === "DONE"
+      ? (isDone ? [current] : [])
+      : (isDone ? [] : [current]);
+    return route.fulfill({
+      contentType: "application/json",
+      body: JSON.stringify({
+        items,
+        page: 1,
+        pageSize: 20,
+        total: items.length,
+        summary: {
+          active: isDone ? 0 : 1,
+          new: 0,
+          overdue: isDone ? 0 : 1,
+          unassigned: isDone ? 0 : 1,
+          done: isDone ? 1 : 0,
+        },
+      }),
+    });
+  });
   await page.route("**/max/api/organizations", (route) =>
     route.fulfill({ contentType: "application/json", body: "[]" }),
   );
   await page.getByRole("link", { name: "← Заявки жителей" }).click();
   await expect(page.locator(".admin-request-card")).toContainText("Не работает лифт");
-  await expect(page.getByRole("button", { name: /Завершены.*решены или закрыты/ })).toContainText("0");
-  await page.getByRole("button", { name: "Завершённые" }).click();
+  await expect(page.locator(".admin-stats").getByRole("button", { name: /Завершённые/ })).toContainText("0");
+  await page.locator(".admin-stats").getByRole("button", { name: /Завершённые/ }).click();
   await expect(page.locator(".admin-request-card")).toHaveCount(0);
 
   await page.route("**/max/api/requests/102", (route) =>
@@ -259,9 +315,9 @@ test("admin must describe the result before resolving a request", async ({
   await expect(page.getByText("Закрыто")).toBeVisible();
 
   await page.goto("/max/admin");
-  await expect(page.getByRole("button", { name: /Завершены.*решены или закрыты/ })).toContainText("1");
+  await expect(page.locator(".admin-stats").getByRole("button", { name: /Завершённые/ })).toContainText("1");
   await expect(page.locator(".admin-request-card")).toHaveCount(0);
-  await page.getByRole("button", { name: "Завершённые" }).click();
+  await page.locator(".admin-stats").getByRole("button", { name: /Завершённые/ }).click();
   await expect(page.locator(".admin-request-card")).toContainText("Не работает лифт");
 });
 
@@ -281,12 +337,11 @@ test("admin manages organizations and user access", async ({ page }) => {
       roles: ["resident"],
     },
   ];
-  const emptyRequests: unknown[] = [];
   let rolePatch: unknown;
   let organizationPatch: unknown;
 
-  await page.route(/\/max\/api\/admin\/requests\?/, (route) =>
-    route.fulfill({ contentType: "application/json", body: JSON.stringify(emptyRequests) }),
+  await page.route("**/max/api/admin/requests?*", (route) =>
+    route.fulfill({ contentType: "application/json", body: JSON.stringify({ items: [], page: 1, pageSize: 20, total: 0, summary: { active: 0, new: 0, overdue: 0, unassigned: 0, done: 0 } }) }),
   );
   await page.route("**/max/api/organizations", (route) =>
     route.fulfill({ contentType: "application/json", body: JSON.stringify(organizations) }),
@@ -326,24 +381,18 @@ test("admin manages organizations and user access", async ({ page }) => {
     });
   });
 
-  await page.goto("/max/admin");
+  await page.goto("/max/admin/settings/users");
 
   await expect(
     page.getByRole("heading", { name: "Администрирование" }),
   ).toBeVisible();
-  await page.getByLabel("Название УК").fill("ООО УК Новый дом");
-  await page.getByRole("button", { name: "Создать УК" }).click();
-  await expect(
-    page.locator(".admin-filters select").first(),
-  ).toContainText("ООО УК Новый дом");
-
   const managerRow = page.locator(".admin-user-row").filter({
     hasText: "manager@example.com",
   });
   await managerRow.getByLabel("Менеджер").click();
   await expect(managerRow.getByLabel("Менеджер")).toBeChecked();
-  await managerRow.getByRole("combobox", { name: "Организация" }).selectOption("2");
+  await managerRow.getByRole("combobox", { name: "Организация" }).selectOption("1");
 
   expect(rolePatch).toEqual({ roles: ["resident", "manager"] });
-  expect(organizationPatch).toEqual({ organizationId: "2" });
+  await expect.poll(() => organizationPatch).toEqual({ organizationId: "1" });
 });

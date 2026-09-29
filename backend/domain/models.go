@@ -249,6 +249,37 @@ type RequestStatusHistory struct {
 	CreatedAt time.Time `json:"createdAt"`
 }
 
+type AdminRequestQuery struct {
+	OrganizationID string
+	UserID         string
+	Query          string
+	Queue          string
+	Status         string
+	Kind           string
+	Sort           string
+	Page           int
+	PageSize       int
+	VisitStart     time.Time
+	VisitEnd       time.Time
+	Now            time.Time
+}
+
+type AdminRequestSummary struct {
+	Active     int `json:"active"`
+	New        int `json:"new"`
+	Overdue    int `json:"overdue"`
+	Unassigned int `json:"unassigned"`
+	Done       int `json:"done"`
+}
+
+type AdminRequestPage struct {
+	Items    []Request           `json:"items"`
+	Page     int                 `json:"page"`
+	PageSize int                 `json:"pageSize"`
+	Total    int                 `json:"total"`
+	Summary  AdminRequestSummary `json:"summary"`
+}
+
 type MessageAttachment struct {
 	ID        string    `json:"id"`
 	MessageID string    `json:"messageId"`

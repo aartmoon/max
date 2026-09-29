@@ -28,6 +28,8 @@ export interface AdminFilters {
   status: Status | "";
   queue: QueueFilter;
   sort: AdminSort;
+  page: number;
+  pageSize: 20 | 50 | 100;
 }
 
 const hour = 60 * 60 * 1000;

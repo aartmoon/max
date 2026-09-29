@@ -12,6 +12,7 @@ import {
 import { useEffect } from "react";
 import MyHouse from "./pages/MyHouse";
 import Admin from "./pages/Admin";
+import AdminSettings from "./pages/AdminSettings";
 import Home from "./pages/Home";
 import NewRequest from "./pages/NewRequest";
 import Requests from "./pages/Requests";
@@ -52,6 +53,10 @@ function App() {
           <Route path="/" element={<Home />} />
           <Route path="/house" element={<MyHouse />} />
           <Route path="/admin" element={<RequireOrganizationRole><Admin /></RequireOrganizationRole>} />
+          <Route path="/admin/settings" element={<Navigate to="/admin/settings/users" replace />} />
+          <Route path="/admin/settings/users" element={<RequireAdmin><AdminSettings section="users" /></RequireAdmin>} />
+          <Route path="/admin/settings/organizations" element={<RequireAdmin><AdminSettings section="organizations" /></RequireAdmin>} />
+          <Route path="/admin/settings/routing" element={<RequireAdmin><AdminSettings section="routing" /></RequireAdmin>} />
           <Route path="/admin/requests/:id" element={<RequireOrganizationRole><RequestDetail admin /></RequireOrganizationRole>} />
           <Route path="/requests/new" element={<NewRequest />} />
           <Route path="/requests" element={<Requests />} />
@@ -89,6 +94,10 @@ function App() {
 function RequireOrganizationRole({ children }: { children: React.ReactNode }) {
   const { user } = useAuth();
   return user.roles?.some((role) => role === "manager" || role === "admin") ? children : <Navigate to="/" replace />;
+}
+function RequireAdmin({ children }: { children: React.ReactNode }) {
+  const { user } = useAuth();
+  return user.roles?.includes("admin") ? children : <Navigate to="/admin" replace />;
 }
 ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode>

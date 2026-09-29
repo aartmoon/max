@@ -69,30 +69,12 @@ func (h Handler) adminRoutes(mux *http.ServeMux) {
 		respond(w, v, e)
 	})))
 	mux.HandleFunc("GET /api/admin/requests", h.requireRole("manager", "admin")(func(w http.ResponseWriter, r *http.Request, user domain.User) {
-		organizationID := ""
-		if !service.HasRole(user, "admin") && user.OrganizationID == nil {
-			respond(w, nil, domain.ErrForbidden)
+		query, e := parseAdminRequestQuery(r.URL.Query(), user, time.Now())
+		if e != nil {
+			respond(w, nil, e)
 			return
 		}
-		if user.OrganizationID != nil {
-			organizationID = *user.OrganizationID
-		}
-		queue := r.URL.Query().Get("queue")
-		if queue == "" {
-			queue = "ACTIVE"
-		}
-		start, end := time.Now().UTC().Truncate(24*time.Hour), time.Now().UTC().Truncate(24*time.Hour).Add(24*time.Hour)
-		if raw := r.URL.Query().Get("visitStart"); raw != "" {
-			if parsed, err := time.Parse(time.RFC3339, raw); err == nil {
-				start = parsed
-			}
-		}
-		if raw := r.URL.Query().Get("visitEnd"); raw != "" {
-			if parsed, err := time.Parse(time.RFC3339, raw); err == nil {
-				end = parsed
-			}
-		}
-		v, e := h.Repo.ListAccessibleRequests(r.Context(), organizationID, user.ID, queue, start, end)
+		v, e := h.Repo.ListAccessibleRequests(r.Context(), query)
 		respond(w, v, e)
 	}))
 	mux.HandleFunc("GET /api/admin/requests/{id}", h.withID(h.requireRole("manager", "admin")(func(w http.ResponseWriter, r *http.Request, user domain.User) {

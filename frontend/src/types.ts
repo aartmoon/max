@@ -40,6 +40,20 @@ export interface RequestItem {
   awaitingParty: "NONE" | "RESIDENT" | "ORGANIZATION";
   reopenCount: number;
 }
+export interface AdminRequestSummary {
+  active: number;
+  new: number;
+  overdue: number;
+  unassigned: number;
+  done: number;
+}
+export interface AdminRequestPage {
+  items: RequestItem[];
+  page: number;
+  pageSize: 20 | 50 | 100;
+  total: number;
+  summary: AdminRequestSummary;
+}
 export interface CurrentUser {
   id: string;
   email: string;
