@@ -66,7 +66,7 @@ func main() {
 	svc := service.RequestService{Repo: repo, Addresses: repo, Houses: repo, Classifier: service.RuleClassifier{}, Routing: service.RoutingService{Repo: repo}, Notifications: service.NotificationService{Client: integration.MockMaxClient{}}, MAXNotifications: service.MAXNotificationService{Repo: repo, API: maxAPI, Username: c.MaxBotUsername, AppURL: c.MaxAppURL}, Mailer: mailer, Housing: integration.MockHousingSystemGateway{}}
 	registry := gishousing.NewClient(c.GISHousingBaseURL, c.GISHousingTimeout, &http.Client{})
 	houseSvc := service.HouseService{Repo: repo, Addresses: repo, Profiles: repo, Registry: registry, ProfileTTL: c.GISHouseCacheTTL}
-	server := &http.Server{Addr: ":" + c.Port, Handler: (controller.Handler{Service: svc, Auth: authSvc, MAXAuth: maxAuthSvc, MAXAccounts: maxAccountSvc, Houses: houseSvc, Addresses: repo, Repo: repo, MockStatusEnabled: c.MockStatusEnabled}).Routes(), ReadHeaderTimeout: 5 * time.Second, ReadTimeout: 20 * time.Second, WriteTimeout: 30 * time.Second, IdleTimeout: 60 * time.Second}
+	server := &http.Server{Addr: ":" + c.Port, Handler: (controller.Handler{Service: svc, Auth: authSvc, MAXAuth: maxAuthSvc, MAXAccounts: maxAccountSvc, Houses: houseSvc, Addresses: repo, Repo: repo, MockStatusEnabled: c.MockStatusEnabled, SecureCookies: c.SecureCookies}).Routes(), ReadHeaderTimeout: 5 * time.Second, ReadTimeout: 20 * time.Second, WriteTimeout: 30 * time.Second, IdleTimeout: 60 * time.Second}
 	stop, done := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer done()
 	if bot != nil {
