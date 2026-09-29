@@ -160,9 +160,10 @@ func (h Handler) verifyAuthCode(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h Handler) logout(w http.ResponseWriter, r *http.Request) {
-	cookie, err := r.Cookie(service.SessionCookieName)
-	if err == nil {
-		_ = h.Auth.Logout(r.Context(), cookie.Value)
+	for _, cookie := range r.Cookies() {
+		if cookie.Name == service.SessionCookieName {
+			_ = h.Auth.Logout(r.Context(), cookie.Value)
+		}
 	}
 	h.setSessionCookie(w, r, "", -1)
 	writeJSON(w, 200, map[string]bool{"ok": true})
@@ -193,11 +194,25 @@ func decodeJSON(r *http.Request, v any) error {
 }
 
 func (h Handler) currentUser(r *http.Request) (domain.User, error) {
-	cookie, err := r.Cookie(service.SessionCookieName)
-	if err != nil {
-		return domain.User{}, domain.ErrUnauthorized
+	var lookupErr error
+	found := false
+	for _, cookie := range r.Cookies() {
+		if cookie.Name != service.SessionCookieName {
+			continue
+		}
+		found = true
+		user, err := h.Auth.UserByToken(r.Context(), cookie.Value)
+		if err == nil {
+			return user, nil
+		}
+		if !errors.Is(err, domain.ErrUnauthorized) {
+			lookupErr = err
+		}
 	}
-	return h.Auth.UserByToken(r.Context(), cookie.Value)
+	if found && lookupErr != nil {
+		return domain.User{}, lookupErr
+	}
+	return domain.User{}, domain.ErrUnauthorized
 }
 
 func (h Handler) requireUser(fn func(http.ResponseWriter, *http.Request, domain.User)) http.HandlerFunc {
