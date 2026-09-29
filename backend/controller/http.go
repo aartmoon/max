@@ -176,7 +176,7 @@ func (h Handler) setSessionCookie(w http.ResponseWriter, r *http.Request, value 
 	}
 	http.SetCookie(w, &http.Cookie{
 		Name: service.SessionCookieName, Value: value, Path: "/", HttpOnly: true,
-		Secure: secure, SameSite: sameSite, MaxAge: maxAge,
+		Secure: secure, SameSite: sameSite, Partitioned: secure, MaxAge: maxAge,
 	})
 }
 
