@@ -37,14 +37,20 @@ test("selects a GAR house and optional apartment and submits their IDs", async (
   const houseInput = page.getByRole("combobox", { name: "Адрес дома" });
   await houseInput.fill("Тверская");
   await expect(page.getByRole("option", { name: house.fullAddress })).toBeVisible();
+  await page.getByLabel("Описание").click();
+  await expect(page.getByRole("option", { name: house.fullAddress })).toHaveCount(0);
+  await houseInput.click();
+  await expect(page.getByRole("option", { name: house.fullAddress })).toBeVisible();
   await houseInput.press("ArrowDown");
   await houseInput.press("Enter");
   await expect(houseInput).toHaveValue(house.fullAddress);
 
   const apartmentInput = page.getByRole("combobox", { name: "Квартира" });
   await apartmentInput.focus();
-  await expect(page.getByRole("option", { name: apartment.fullAddress })).toBeVisible();
-  await page.getByRole("option", { name: apartment.fullAddress }).click();
+  await expect(page.getByRole("option", { name: apartment.displayName })).toBeVisible();
+  await expect(page.getByRole("option", { name: apartment.fullAddress })).toHaveCount(0);
+  await page.getByRole("option", { name: apartment.displayName }).click();
+  await expect(apartmentInput).toHaveValue(apartment.displayName);
   await page.getByLabel("Описание").fill("Не работает лифт");
 
   const posted = new Promise<string>((resolve) => {

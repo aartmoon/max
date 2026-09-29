@@ -91,12 +91,7 @@ type houseDetailDTO struct {
 	Deterioration      *flexibleFloat `json:"deterioration"`
 	DeteriorationDate  *flexibleDate  `json:"deteriorationDate"`
 	WallMaterial       string         `json:"intWallMaterialList"`
-	EnergyEfficiency   struct {
-		Code             string `json:"code"`
-		Value            string `json:"value"`
-		Name             string `json:"name"`
-		EnergyEfficiency string `json:"energyEfficiency"`
-	} `json:"houseEnergyEfficiency"`
+	EnergyEfficiency   energyEfficiencyDTO `json:"houseEnergyEfficiency"`
 	HouseCondition struct {
 		Name string `json:"houseCondition"`
 	} `json:"houseCondition"`
@@ -108,6 +103,35 @@ type houseDetailDTO struct {
 	} `json:"houseManagementType"`
 	ManagementContractDate *flexibleDate `json:"managementContractDate"`
 	EndContractDate        *flexibleDate `json:"endContractDate"`
+}
+
+type energyEfficiencyDTO struct {
+	Code             string `json:"code"`
+	Value            string `json:"value"`
+	Name             string `json:"name"`
+	EnergyEfficiency string `json:"energyEfficiency"`
+}
+
+func (v *energyEfficiencyDTO) UnmarshalJSON(data []byte) error {
+	raw := strings.TrimSpace(string(data))
+	if raw == "" || raw == "null" {
+		return nil
+	}
+	if strings.HasPrefix(raw, `"`) {
+		var text string
+		if err := json.Unmarshal(data, &text); err != nil {
+			return err
+		}
+		v.Value = text
+		return nil
+	}
+	type alias energyEfficiencyDTO
+	var object alias
+	if err := json.Unmarshal(data, &object); err != nil {
+		return err
+	}
+	*v = energyEfficiencyDTO(object)
+	return nil
 }
 
 type squareSummaryDTO struct {

@@ -129,6 +129,29 @@ func TestOperationYearDoesNotBecomeConstructionYear(t *testing.T) {
 	}
 }
 
+func TestEnergyEfficiencyAcceptsString(t *testing.T) {
+	const fias = "151b9095-9f1d-4ab5-afc6-db971eed9d49"
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch {
+		case strings.Contains(r.URL.Path, "searchByFiasHouseCodeList"):
+			_, _ = w.Write([]byte(`{"houseList":[{"guid":"gis","houseType":{"code":"1"},"house":{"code":"` + fias + `"}}]}`))
+		case strings.Contains(r.URL.Path, "get-house-square-data"):
+			http.Error(w, "unavailable", http.StatusBadGateway)
+		default:
+			_, _ = w.Write([]byte(`{"guid":"gis","houseType":{"code":"1"},"houseEnergyEfficiency":"B"}`))
+		}
+	}))
+	defer server.Close()
+
+	profile, err := NewClient(server.URL, time.Second, server.Client()).FetchHouse(context.Background(), fias)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if profile.Characteristics.EnergyEfficiency == nil || *profile.Characteristics.EnergyEfficiency != "B" {
+		t.Fatalf("unexpected energy efficiency: %+v", profile.Characteristics)
+	}
+}
+
 func TestSquareSummaryFailuresAreOptional(t *testing.T) {
 	cases := map[string]func(http.ResponseWriter){
 		"status":    func(w http.ResponseWriter) { http.Error(w, "bad", http.StatusBadGateway) },

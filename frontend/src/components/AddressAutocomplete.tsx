@@ -1,6 +1,7 @@
 import {
   useEffect,
   useId,
+  useRef,
   useState,
   type KeyboardEvent,
 } from "react";
@@ -28,26 +29,48 @@ export function AddressAutocomplete({
 }: Props) {
   const inputId = useId();
   const listId = `${inputId}-list`;
-  const [query, setQuery] = useState(value?.fullAddress ?? "");
+  const rootRef = useRef<HTMLDivElement>(null);
+  const itemLabel = (item: AddressSuggestion) =>
+    kind === "apartment" ? item.displayName || item.fullAddress : item.fullAddress;
+  const [query, setQuery] = useState(value ? itemLabel(value) : "");
   const [items, setItems] = useState<AddressSuggestion[]>([]);
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
   const [activeIndex, setActiveIndex] = useState(-1);
+  const [searchTick, setSearchTick] = useState(0);
   const canSearch = query.trim().length >= 2 || Boolean(parentObjectId);
 
   useEffect(() => {
-    if (value) setQuery(value.fullAddress);
-  }, [value]);
+    if (value) setQuery(itemLabel(value));
+  }, [value, kind]);
+
+  const close = () => {
+    setItems([]);
+    setMessage("");
+    setActiveIndex(-1);
+  };
 
   useEffect(() => {
-    if (value && query === value.fullAddress) {
-      setItems([]);
-      setMessage("");
+    const onPointerDown = (event: PointerEvent) => {
+      if (
+        rootRef.current &&
+        event.target instanceof Node &&
+        !rootRef.current.contains(event.target)
+      ) {
+        close();
+      }
+    };
+    document.addEventListener("pointerdown", onPointerDown);
+    return () => document.removeEventListener("pointerdown", onPointerDown);
+  }, []);
+
+  useEffect(() => {
+    if (value && query === itemLabel(value)) {
+      close();
       return;
     }
     if (!canSearch) {
-      setItems([]);
-      setMessage("");
+      close();
       return;
     }
     const controller = new AbortController();
@@ -76,13 +99,11 @@ export function AddressAutocomplete({
       window.clearTimeout(timer);
       controller.abort();
     };
-  }, [canSearch, kind, parentObjectId, query, value]);
+  }, [canSearch, kind, parentObjectId, query, searchTick, value]);
 
   const select = (item: AddressSuggestion) => {
-    setQuery(item.fullAddress);
-    setItems([]);
-    setMessage("");
-    setActiveIndex(-1);
+    setQuery(itemLabel(item));
+    close();
     onChange(item);
   };
 
@@ -98,13 +119,12 @@ export function AddressAutocomplete({
       event.preventDefault();
       select(items[activeIndex]);
     } else if (event.key === "Escape") {
-      setItems([]);
-      setActiveIndex(-1);
+      close();
     }
   };
 
   return (
-    <div className="address-autocomplete">
+    <div className="address-autocomplete" ref={rootRef}>
       <label htmlFor={inputId}>
         {label} {required && <span>*</span>}
       </label>
@@ -120,10 +140,20 @@ export function AddressAutocomplete({
         placeholder={placeholder}
         autoComplete="off"
         onKeyDown={onKeyDown}
+        onFocus={() => {
+          if (canSearch && !(value && query === itemLabel(value))) {
+            setSearchTick((current) => current + 1);
+          }
+        }}
+        onBlur={() => {
+          window.setTimeout(() => {
+            if (!rootRef.current?.contains(document.activeElement)) close();
+          }, 0);
+        }}
         onChange={(event) => {
           const next = event.target.value;
           setQuery(next);
-          if (value && next !== value.fullAddress) onChange(null);
+          if (value && next !== itemLabel(value)) onChange(null);
         }}
       />
       {loading && <small className="address-status">Ищем адрес…</small>}
@@ -141,7 +171,7 @@ export function AddressAutocomplete({
               onMouseDown={(event) => event.preventDefault()}
               onClick={() => select(item)}
             >
-              {item.fullAddress}
+              {itemLabel(item)}
             </button>
           ))}
         </div>
