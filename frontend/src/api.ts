@@ -8,6 +8,7 @@ import type {
   AddressSuggestion,
   CurrentUser,
   UserApartment,
+  UserRole,
 } from "./types";
 import { apiPath } from "./paths";
 async function call<T>(path: string, init?: RequestInit): Promise<T> {
@@ -120,6 +121,20 @@ export const adminApi = {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ name }),
+    }),
+  users: (signal?: AbortSignal) =>
+    call<CurrentUser[]>("/admin/users", { signal }),
+  updateUserRoles: (id: string, roles: UserRole[]) =>
+    call<CurrentUser>(`/admin/users/${id}/roles`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ roles }),
+    }),
+  updateUserOrganization: (id: string, organizationId: string) =>
+    call<CurrentUser>(`/admin/users/${id}/organization`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ organizationId }),
     }),
   get: (id: string, signal?: AbortSignal) =>
     call<RequestItem>(`/admin/requests/${id}`, { signal }),

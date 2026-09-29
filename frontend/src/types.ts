@@ -2,6 +2,7 @@ export type Status =
   "CREATED" | "SENT" | "ACCEPTED" | "IN_PROGRESS" | "RESOLVED" | "REJECTED";
 export type Kind =
   "PROBLEM" | "APPLICATION" | "QUESTION" | "EMERGENCY" | "COMPLAINT";
+export type UserRole = "resident" | "manager" | "admin";
 export interface RequestItem {
   id: string;
   userId: string;
@@ -26,7 +27,7 @@ export interface CurrentUser {
   id: string;
   email: string;
   name: string;
-  roles: string[];
+  roles: UserRole[];
   organizationId?: string;
 }
 export interface UserApartment {

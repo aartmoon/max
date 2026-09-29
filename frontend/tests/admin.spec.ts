@@ -59,6 +59,20 @@ test.beforeEach(async ({ page }) => {
   await page.route("https://st.max.ru/js/max-web-app.js", (route) =>
     route.abort(),
   );
+  await page.route("**/max/api/me", (route) =>
+    route.fulfill({
+      contentType: "application/json",
+      body: JSON.stringify({
+        id: "1",
+        email: "admin@example.com",
+        name: "admin@example.com",
+        roles: ["admin", "resident"],
+      }),
+    }),
+  );
+  await page.route("**/max/api/admin/users", (route) =>
+    route.fulfill({ contentType: "application/json", body: "[]" }),
+  );
 });
 
 test("admin queue prioritizes work and keeps filters in the URL", async ({
@@ -184,4 +198,87 @@ test("admin must describe the result before resolving a request", async ({
     status: "RESOLVED",
     comment: "Лифт запущен, проверка выполнена.",
   });
+});
+
+test("admin manages organizations and user access", async ({ page }) => {
+  const organizations = [{ id: "1", name: "УК «Тестовая»" }];
+  const users = [
+    {
+      id: "1",
+      email: "admin@example.com",
+      name: "admin@example.com",
+      roles: ["admin", "resident"],
+    },
+    {
+      id: "2",
+      email: "manager@example.com",
+      name: "manager@example.com",
+      roles: ["resident"],
+    },
+  ];
+  const emptyRequests: unknown[] = [];
+  let rolePatch: unknown;
+  let organizationPatch: unknown;
+
+  await page.route("**/max/api/admin/requests", (route) =>
+    route.fulfill({ contentType: "application/json", body: JSON.stringify(emptyRequests) }),
+  );
+  await page.route("**/max/api/organizations", (route) =>
+    route.fulfill({ contentType: "application/json", body: JSON.stringify(organizations) }),
+  );
+  await page.route("**/max/api/admin/users**", (route) => {
+    const url = new URL(route.request().url());
+    if (route.request().method() === "GET" && url.pathname.endsWith("/admin/users")) {
+      return route.fulfill({
+        contentType: "application/json",
+        body: JSON.stringify(users),
+      });
+    }
+    return route.fallback();
+  });
+  await page.route("**/max/api/admin/organizations", async (route) => {
+    const body = route.request().postDataJSON();
+    organizations.push({ id: "2", name: body.name });
+    await route.fulfill({
+      contentType: "application/json",
+      body: JSON.stringify(organizations[1]),
+    });
+  });
+  await page.route("**/max/api/admin/users/2/roles", async (route) => {
+    rolePatch = route.request().postDataJSON();
+    users[1].roles = (rolePatch as { roles: string[] }).roles;
+    await route.fulfill({
+      contentType: "application/json",
+      body: JSON.stringify(users[1]),
+    });
+  });
+  await page.route("**/max/api/admin/users/2/organization", async (route) => {
+    organizationPatch = route.request().postDataJSON();
+    users[1].organizationId = (organizationPatch as { organizationId: string }).organizationId;
+    await route.fulfill({
+      contentType: "application/json",
+      body: JSON.stringify(users[1]),
+    });
+  });
+
+  await page.goto("/max/admin");
+
+  await expect(
+    page.getByRole("heading", { name: "Администрирование" }),
+  ).toBeVisible();
+  await page.getByLabel("Название УК").fill("ООО УК Новый дом");
+  await page.getByRole("button", { name: "Создать УК" }).click();
+  await expect(
+    page.locator(".admin-filters select").first(),
+  ).toContainText("ООО УК Новый дом");
+
+  const managerRow = page.locator(".admin-user-row").filter({
+    hasText: "manager@example.com",
+  });
+  await managerRow.getByLabel("Менеджер").click();
+  await expect(managerRow.getByLabel("Менеджер")).toBeChecked();
+  await managerRow.getByRole("combobox", { name: "Организация" }).selectOption("2");
+
+  expect(rolePatch).toEqual({ roles: ["resident", "manager"] });
+  expect(organizationPatch).toEqual({ organizationId: "2" });
 });

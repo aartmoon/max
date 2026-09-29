@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import {
   deadlineInfo,
@@ -12,15 +12,18 @@ import {
   type QueueFilter,
 } from "../admin";
 import { adminApi } from "../api";
+import { useAuth } from "../auth";
 import { ErrorMessage, Loading, StatusBadge } from "../components/UI";
 import {
   categories,
   kinds,
   statuses,
+  type CurrentUser,
   type Kind,
   type Organization,
   type RequestItem,
   type Status,
+  type UserRole,
 } from "../types";
 
 const queueOptions: { value: QueueFilter; label: string }[] = [
@@ -34,15 +37,26 @@ const queueOptions: { value: QueueFilter; label: string }[] = [
 
 const validQueues = new Set(queueOptions.map(({ value }) => value));
 const validSorts = new Set<AdminSort>(["priority", "newest", "deadline"]);
+const roleOptions: { value: UserRole; label: string }[] = [
+  { value: "resident", label: "Житель" },
+  { value: "manager", label: "Менеджер" },
+  { value: "admin", label: "Администратор" },
+];
 
 export default function Admin() {
+  const { user } = useAuth();
   const [items, setItems] = useState<RequestItem[] | null>(null);
   const [organizations, setOrganizations] = useState<Organization[]>([]);
+  const [users, setUsers] = useState<CurrentUser[]>([]);
+  const [organizationName, setOrganizationName] = useState("");
   const [error, setError] = useState("");
+  const [adminError, setAdminError] = useState("");
   const [loading, setLoading] = useState(true);
+  const [savingAdmin, setSavingAdmin] = useState(false);
   const [refresh, setRefresh] = useState(0);
   const [updatedAt, setUpdatedAt] = useState<Date | null>(null);
   const [searchParams, setSearchParams] = useSearchParams();
+  const isAdmin = user.roles?.includes("admin");
 
   const rawQueue = searchParams.get("queue") ?? "active";
   const rawSort = searchParams.get("sort") ?? "priority";
@@ -83,11 +97,13 @@ export default function Admin() {
     Promise.all([
       adminApi.list(controller.signal),
       adminApi.organizations(controller.signal),
+      isAdmin ? adminApi.users(controller.signal) : Promise.resolve([]),
     ])
-      .then(([requests, organizationList]) => {
+      .then(([requests, organizationList, userList]) => {
         if (controller.signal.aborted) return;
         setItems(requests);
         setOrganizations(organizationList);
+        setUsers(userList);
         setUpdatedAt(new Date());
       })
       .catch((reason) => {
@@ -97,7 +113,62 @@ export default function Admin() {
         if (!controller.signal.aborted) setLoading(false);
       });
     return () => controller.abort();
-  }, [refresh]);
+  }, [refresh, isAdmin]);
+
+  async function createOrganization(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const name = organizationName.trim();
+    if (!name || savingAdmin) return;
+    setSavingAdmin(true);
+    setAdminError("");
+    try {
+      const created = await adminApi.createOrganization(name);
+      setOrganizations((current) => [...current, created]);
+      setOrganizationName("");
+    } catch (reason) {
+      setAdminError((reason as Error).message);
+    } finally {
+      setSavingAdmin(false);
+    }
+  }
+
+  function replaceUser(next: CurrentUser) {
+    setUsers((current) =>
+      current.map((item) => (item.id === next.id ? next : item)),
+    );
+  }
+
+  async function toggleRole(target: CurrentUser, role: UserRole, checked: boolean) {
+    if (savingAdmin) return;
+    const selected = new Set<UserRole>(target.roles);
+    if (checked) selected.add(role);
+    else selected.delete(role);
+    const roles = roleOptions
+      .map((option) => option.value)
+      .filter((value) => selected.has(value));
+    setSavingAdmin(true);
+    setAdminError("");
+    try {
+      replaceUser(await adminApi.updateUserRoles(target.id, roles));
+    } catch (reason) {
+      setAdminError((reason as Error).message);
+    } finally {
+      setSavingAdmin(false);
+    }
+  }
+
+  async function updateUserOrganization(target: CurrentUser, organizationId: string) {
+    if (savingAdmin) return;
+    setSavingAdmin(true);
+    setAdminError("");
+    try {
+      replaceUser(await adminApi.updateUserOrganization(target.id, organizationId));
+    } catch (reason) {
+      setAdminError((reason as Error).message);
+    } finally {
+      setSavingAdmin(false);
+    }
+  }
 
   const now = new Date();
   const organizationItems = (items ?? []).filter(
@@ -157,7 +228,8 @@ export default function Admin() {
       </section>
 
       <p className="admin-notice">
-        Демо-кабинет без авторизации. Доступны заявки всех тестовых организаций.
+        Доступ ограничен ролями: администратор видит все заявки, менеджер —
+        только заявки своей УК.
       </p>
 
       {error && <ErrorMessage message={error} />}
@@ -321,6 +393,91 @@ export default function Admin() {
               </button>
             )}
           </section>
+
+          {isAdmin && (
+            <section className="panel admin-management">
+              <div className="admin-management-header">
+                <div>
+                  <div className="eyebrow">ДОСТУПЫ И УК</div>
+                  <h2>Администрирование</h2>
+                </div>
+                <small>
+                  Менеджеру нужна роль и выбранная УК, иначе заявки будут
+                  недоступны.
+                </small>
+              </div>
+              {adminError && <ErrorMessage message={adminError} />}
+              <form className="admin-org-form" onSubmit={createOrganization}>
+                <label htmlFor="organization-name">
+                  Название УК
+                  <input
+                    id="organization-name"
+                    value={organizationName}
+                    onChange={(event) => setOrganizationName(event.target.value)}
+                    placeholder="Например: ООО УК Новый дом"
+                  />
+                </label>
+                <button
+                  className="button primary"
+                  type="submit"
+                  disabled={!organizationName.trim() || savingAdmin}
+                >
+                  Создать УК
+                </button>
+              </form>
+              <div className="admin-users">
+                {users.map((item) => {
+                  const hasManagerRole = item.roles.includes("manager");
+                  const hasOrganization = Boolean(item.organizationId);
+                  return (
+                    <div className="admin-user-row" key={item.id}>
+                      <div className="admin-user-main">
+                        <strong>{item.email || item.name}</strong>
+                        <small>ID {item.id}</small>
+                      </div>
+                      <div className="admin-role-list">
+                        {roleOptions.map((option) => (
+                          <label key={option.value}>
+                            <input
+                              type="checkbox"
+                              checked={item.roles.includes(option.value)}
+                              disabled={savingAdmin}
+                              onChange={(event) =>
+                                toggleRole(item, option.value, event.target.checked)
+                              }
+                            />
+                            {option.label}
+                          </label>
+                        ))}
+                      </div>
+                      <label className="admin-user-organization">
+                        Организация
+                        <select
+                          value={item.organizationId ?? ""}
+                          disabled={savingAdmin}
+                          onChange={(event) =>
+                            updateUserOrganization(item, event.target.value)
+                          }
+                        >
+                          <option value="">Не выбрана</option>
+                          {organizations.map((organization) => (
+                            <option key={organization.id} value={organization.id}>
+                              {organization.name}
+                            </option>
+                          ))}
+                        </select>
+                      </label>
+                      {hasManagerRole && !hasOrganization && (
+                        <span className="admin-user-warning">
+                          Выберите УК для доступа к заявкам
+                        </span>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </section>
+          )}
 
           <div className="admin-list-header" aria-live="polite">
             <div>
