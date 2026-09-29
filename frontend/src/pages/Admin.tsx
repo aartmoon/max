@@ -99,7 +99,7 @@ export default function Admin() {
     setError("");
     setLoading(true);
     Promise.all([
-      adminApi.list(controller.signal, filters.queue === "unassigned" ? "UNASSIGNED" : filters.queue === "mine" ? "MINE" : filters.queue === "visitToday" ? "VISIT_TODAY" : filters.queue === "all" ? "ALL" : "ACTIVE"),
+      adminApi.list(controller.signal, filters.queue === "unassigned" ? "UNASSIGNED" : filters.queue === "mine" ? "MINE" : filters.queue === "visitToday" ? "VISIT_TODAY" : "ALL"),
       adminApi.organizations(controller.signal),
       isAdmin ? adminApi.users(controller.signal) : Promise.resolve([]),
     ])

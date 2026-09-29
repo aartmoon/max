@@ -69,7 +69,13 @@ export default function AdminStatusForm({
       {allowed.length === 0 ? (
         <div className="status-finished">
           <span aria-hidden="true">✓</span>
-          <p>Заявка завершена. Результат и история доступны жителю.</p>
+          <p>
+            {item.status === "RESOLVED"
+              ? "Работы выполнены. Ожидается подтверждение жителя."
+              : item.status === "REJECTED"
+                ? "Заявка отклонена. Причина и история доступны жителю."
+                : "Заявка завершена. Результат и история доступны жителю."}
+          </p>
         </div>
       ) : (
         <form className="form" onSubmit={submit}>
