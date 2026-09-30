@@ -367,10 +367,3 @@ python3 scripts/smoke.py
 6. Добавлять версии в `repository/migrations` и подключать их в `Postgres.Migrate`. Версия отмечается в `schema_migrations`; схема и миграция применяются одной транзакцией с блокировкой от параллельного запуска.
 
 В MVP нет микросервисов, Kafka, Redis, Kubernetes, Elasticsearch или LLM. Проверка внутри реального MAX требует регистрации приложения и HTTPS; браузерный демо-режим работает без них.
-
-## Agent skills
-
-This repository vendors the [Superpowers](https://github.com/obra/superpowers)
-skill set in `.agents/skills`. Codex discovers these skills from the project
-automatically. The pinned upstream version and commit are recorded in
-`.agents/SUPERPOWERS-SOURCE.md`.
